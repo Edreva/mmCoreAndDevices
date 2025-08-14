@@ -75,6 +75,7 @@ private: // Private data
 
    std::string monitorName_; // Empty string if test mode
    unsigned width_, height_;
+   float pixelSize_; // um
 
    SLMWindowThread* windowThread_;
    SleepBlocker* sleepBlocker_;

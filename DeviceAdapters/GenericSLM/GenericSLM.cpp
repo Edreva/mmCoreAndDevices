@@ -40,6 +40,9 @@ const char* g_PropName_TestModeHeight = "TestModeHeight";
 const char* g_PropName_Inversion = "Inversion";
 const char* g_PropName_MonoColor = "MonochromeColor";
 const char* g_PropName_DisplayImage = "DisplayImage";
+const char* g_PropName_DisplayWidthPx = "DisplayWidthPixels";
+const char* g_PropName_DisplayHeightPx = "DisplayHeightPixels";
+const char* g_PropName_DisplayPxSize = "DisplayPixelSize_um";
 
 
 enum {
@@ -118,6 +121,7 @@ GenericSLM::GenericSLM(const char* name) :
 
    CreateIntegerProperty(g_PropName_TestModeWidth, 128, false, 0, true);
    CreateIntegerProperty(g_PropName_TestModeHeight, 128, false, 0, true);
+
 }
 
 
@@ -242,6 +246,11 @@ int GenericSLM::Initialize()
    width_ = w;
    height_ = h;
 
+   CreateIntegerProperty(g_PropName_DisplayHeightPx, height_, true);
+   CreateIntegerProperty(g_PropName_DisplayWidthPx, width_, true);
+
+   pixelSize_ = 0;
+   CreateFloatProperty(g_PropName_DisplayPxSize, pixelSize_, false); // User entered pixel size. Future use when real image sizes are needed.
 
    // Set up test images to select via device property manager
    off_image_ = std::vector<unsigned char>(height_ * width_, 0);
@@ -251,6 +260,8 @@ int GenericSLM::Initialize()
 
    err = CreateStringProperty(g_PropName_DisplayImage, imageName_.c_str(), false,
        new CPropertyAction(this, &GenericSLM::OnDisplayImage));
+   if (err != DEVICE_OK)
+       return err;
 
    AddAllowedValue(g_PropName_DisplayImage, "Off");
    AddAllowedValue(g_PropName_DisplayImage, "On");

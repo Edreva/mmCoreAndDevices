@@ -64,6 +64,7 @@ public:
 private: // Action handlers
    int OnInversion(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnMonochromeColor(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnDisplayImage(MM::PropertyBase* pProp, MM::ActionType eAct);
 
 private: // Private data
    const std::string name_;
@@ -86,6 +87,11 @@ private: // Private data
 
    SLMColor monoColor_;
    std::string monoColorStr_;
+   
+   std::string imageName_;
+   std::map< std::string, unsigned char*> images_;
+   std::vector< unsigned char > off_image_;
+   std::vector< unsigned char > on_image_;
 
 private:
    GenericSLM& operator=(const GenericSLM&);

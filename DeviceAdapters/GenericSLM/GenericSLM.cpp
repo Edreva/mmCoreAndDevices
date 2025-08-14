@@ -39,6 +39,7 @@ const char* g_PropName_TestModeWidth = "TestModeWidth";
 const char* g_PropName_TestModeHeight = "TestModeHeight";
 const char* g_PropName_Inversion = "Inversion";
 const char* g_PropName_MonoColor = "MonochromeColor";
+const char* g_PropName_DisplayImage = "DisplayImage";
 
 
 enum {
@@ -89,7 +90,8 @@ GenericSLM::GenericSLM(const char* name) :
    invert_(false),
    inversionStr_("Off"),
    monoColor_(SLM_COLOR_WHITE),
-   monoColorStr_("White")
+   monoColorStr_("White"),
+   imageName_("Off")
 {
    InitializeDefaultErrorMessages();
    SetErrorText(ERR_INVALID_TESTMODE_SIZE,
@@ -239,6 +241,19 @@ int GenericSLM::Initialize()
 
    width_ = w;
    height_ = h;
+
+
+   // Set up test images to select via device property manager
+   off_image_ = std::vector<unsigned char>(height_ * width_, 0);
+   on_image_ = std::vector<unsigned char>(height_ * width_, 128);
+   images_["Off"] = &off_image_[0];
+   images_["On"] = &on_image_[0];
+
+   err = CreateStringProperty(g_PropName_DisplayImage, imageName_.c_str(), false,
+       new CPropertyAction(this, &GenericSLM::OnDisplayImage));
+
+   AddAllowedValue(g_PropName_DisplayImage, "Off");
+   AddAllowedValue(g_PropName_DisplayImage, "On");
 
    return DEVICE_OK;
 }
@@ -450,4 +465,21 @@ int GenericSLM::OnMonochromeColor(MM::PropertyBase* pProp, MM::ActionType eAct)
    }
 
    return DEVICE_OK;
+}
+
+
+int GenericSLM::OnDisplayImage(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+    if (eAct == MM::BeforeGet)
+    {
+        pProp->Set(imageName_.c_str());
+    }
+    else if (eAct == MM::AfterSet)
+    {
+        pProp->Get(imageName_);
+        SetImage(images_[imageName_]);
+        DisplayImage();
+    }
+
+    return DEVICE_OK;
 }

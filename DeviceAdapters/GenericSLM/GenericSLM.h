@@ -61,6 +61,9 @@ public:
    virtual int IsSLMSequenceable(bool& isSequenceable) const
    { isSequenceable = false; return DEVICE_OK; }
 
+   // Display API
+   int StoreImage(const std::string ref, std::vector<unsigned char> pixels);
+
 private: // Action handlers
    int OnInversion(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnMonochromeColor(MM::PropertyBase* pProp, MM::ActionType eAct);
@@ -90,10 +93,21 @@ private: // Private data
    std::string monoColorStr_;
    
    std::string imageName_;
-   std::map< std::string, unsigned char*> images_;
+   std::map< std::string, std::vector<unsigned char>> images_; // May be better to use property data of g_PropName_DisplayImage 
+															   // to store image index and use GetPropertyData to find image index 
+															   // (storing images in vector) 
+
    std::vector< unsigned char > off_image_;
    std::vector< unsigned char > on_image_;
 
 private:
    GenericSLM& operator=(const GenericSLM&);
 };
+
+std::vector<unsigned char> HalfCircleFrame(unsigned int frameHeight, unsigned int frameWidth, unsigned int diameter, int rotation,
+	int centerX, int centerY);
+
+float DistanceFromCenter(unsigned int centerX, unsigned int centerY, unsigned int pointX, unsigned int pointY);
+
+bool IsPointInHalfCircle(unsigned int centerX, unsigned int centerY,
+	unsigned int pointX, unsigned int pointY, unsigned int diameter, int rotationDeg);

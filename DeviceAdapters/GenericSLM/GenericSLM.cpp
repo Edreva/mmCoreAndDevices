@@ -176,97 +176,150 @@ int GenericSLM::Initialize()
    // Set up the monitor and window
    //
 
-   long graphicsPortIndex;
-   err = GetCurrentPropertyData(g_PropName_GraphicsPort, graphicsPortIndex);
-   if (err != DEVICE_OK)
-      return err;
+long graphicsPortIndex;
+err = GetCurrentPropertyData(g_PropName_GraphicsPort, graphicsPortIndex);
+if (err != DEVICE_OK)
+return err;
 
-   LONG x, y, w, h;
-   std::vector<std::string> desktopMonitors;
-   if (graphicsPortIndex == 0) // Test mode
-   {
-      err = GetProperty(g_PropName_TestModeWidth, w);
-      if (err != DEVICE_OK)
-         return err;
-      err = GetProperty(g_PropName_TestModeHeight, h);
-      if (err != DEVICE_OK)
-         return err;
+LONG x, y, w, h;
+std::vector<std::string> desktopMonitors;
+if (graphicsPortIndex == 0) // Test mode
+{
+    err = GetProperty(g_PropName_TestModeWidth, w);
+    if (err != DEVICE_OK)
+        return err;
+    err = GetProperty(g_PropName_TestModeHeight, h);
+    if (err != DEVICE_OK)
+        return err;
 
-      if (w < 1 || h < 1)
-         return ERR_INVALID_TESTMODE_SIZE;
+    if (w < 1 || h < 1)
+        return ERR_INVALID_TESTMODE_SIZE;
 
-      // The top-left of the primary desktop monior is (0, 0), so this is a
-      // safe position for the window
-      x = y = 100;
+    // The top-left of the primary desktop monior is (0, 0), so this is a
+    // safe position for the window
+    x = y = 100;
 
-      desktopMonitors = GetMonitorNames(false, true);
-   }
-   else // Real monitor
-   {
-      // Map property data 1 thru N + 1 to available monitors 0 thru N
-      monitorName_ = availableMonitors_[graphicsPortIndex - 1];
+    desktopMonitors = GetMonitorNames(false, true);
+}
+else // Real monitor
+{
+    // Map property data 1 thru N + 1 to available monitors 0 thru N
+    monitorName_ = availableMonitors_[graphicsPortIndex - 1];
 
-      if (!DetachMonitorFromDesktop(monitorName_))
-      {
-         monitorName_ = "";
-         return ERR_CANNOT_DETACH;
-      }
+    if (!DetachMonitorFromDesktop(monitorName_))
+    {
+        monitorName_ = "";
+        return ERR_CANNOT_DETACH;
+    }
 
-      desktopMonitors = GetMonitorNames(false, true);
+    desktopMonitors = GetMonitorNames(false, true);
 
-      LONG posX, posY;
-      GetRightmostMonitorTopRight(desktopMonitors, posX, posY);
+    LONG posX, posY;
+    GetRightmostMonitorTopRight(desktopMonitors, posX, posY);
 
-      if (!AttachMonitorToDesktop(monitorName_, posX, posY))
-      {
-         monitorName_ = "";
-         return ERR_CANNOT_ATTACH;
-      }
+    if (!AttachMonitorToDesktop(monitorName_, posX, posY))
+    {
+        monitorName_ = "";
+        return ERR_CANNOT_ATTACH;
+    }
 
-      GetMonitorRect(monitorName_, x, y, w, h);
-   }
+    GetMonitorRect(monitorName_, x, y, w, h);
+}
 
-   std::string windowTitle = "MM_SLM " +
-      boost::lexical_cast<std::string>(w) + "x" +
-      boost::lexical_cast<std::string>(h) + " [" +
-      (monitorName_.empty() ? "Test Mode" : monitorName_) +
-      "]";
+std::string windowTitle = "MM_SLM " +
+boost::lexical_cast<std::string>(w) + "x" +
+boost::lexical_cast<std::string>(h) + " [" +
+(monitorName_.empty() ? "Test Mode" : monitorName_) +
+"]";
 
-   windowThread_ = new SLMWindowThread(monitorName_.empty(),
-         windowTitle, x, y, w, h);
-   windowThread_->Show();
+windowThread_ = new SLMWindowThread(monitorName_.empty(),
+    windowTitle, x, y, w, h);
+windowThread_->Show();
 
-   RECT mouseClipRect;
-   if (GetBoundingRect(desktopMonitors, mouseClipRect))
-      sleepBlocker_ = new SleepBlocker(mouseClipRect);
-   else
-      sleepBlocker_ = new SleepBlocker();
-   sleepBlocker_->Start();
+RECT mouseClipRect;
+if (GetBoundingRect(desktopMonitors, mouseClipRect))
+sleepBlocker_ = new SleepBlocker(mouseClipRect);
+else
+sleepBlocker_ = new SleepBlocker();
+sleepBlocker_->Start();
 
-   width_ = w;
-   height_ = h;
+width_ = w;
+height_ = h;
 
-   CreateIntegerProperty(g_PropName_DisplayHeightPx, height_, true);
-   CreateIntegerProperty(g_PropName_DisplayWidthPx, width_, true);
+CreateIntegerProperty(g_PropName_DisplayHeightPx, height_, true);
+CreateIntegerProperty(g_PropName_DisplayWidthPx, width_, true);
 
-   pixelSize_ = 0;
-   CreateFloatProperty(g_PropName_DisplayPxSize, pixelSize_, false); // User entered pixel size. Future use when real image sizes are needed.
+pixelSize_ = 0;
+CreateFloatProperty(g_PropName_DisplayPxSize, pixelSize_, false); // User entered pixel size. Future use when real image sizes are needed.
 
-   // Set up test images to select via device property manager
-   off_image_ = std::vector<unsigned char>(height_ * width_, 0);
-   on_image_ = std::vector<unsigned char>(height_ * width_, 128);
-   images_["Off"] = &off_image_[0];
-   images_["On"] = &on_image_[0];
+// Set up test images to select via device property manager
+images_["Off"] = std::vector<unsigned char>(height_ * width_, 0);
+images_["On"] = std::vector<unsigned char>(height_ * width_, 128);
+images_["DPC1"] = HalfCircleFrame(height_, width_, min(height_,width_), 0, (int)width_/2, (int)height_/2);
+images_["DPC2"] = HalfCircleFrame(height_, width_, min(height_, width_), 90, (int)width_ / 2, (int)height_ / 2);
+images_["DPC3"] = HalfCircleFrame(height_, width_, min(height_, width_), 180, (int)width_ / 2, (int)height_ / 2);
+images_["DPC4"] = HalfCircleFrame(height_, width_, min(height_, width_), 270, (int)width_ / 2, (int)height_ / 2);
 
-   err = CreateStringProperty(g_PropName_DisplayImage, imageName_.c_str(), false,
-       new CPropertyAction(this, &GenericSLM::OnDisplayImage));
-   if (err != DEVICE_OK)
-       return err;
+err = CreateStringProperty(g_PropName_DisplayImage, imageName_.c_str(), false,
+    new CPropertyAction(this, &GenericSLM::OnDisplayImage));
+if (err != DEVICE_OK)
+return err;
 
-   AddAllowedValue(g_PropName_DisplayImage, "Off");
-   AddAllowedValue(g_PropName_DisplayImage, "On");
+AddAllowedValue(g_PropName_DisplayImage, "Off");
+AddAllowedValue(g_PropName_DisplayImage, "On");
+AddAllowedValue(g_PropName_DisplayImage, "DPC1");
+AddAllowedValue(g_PropName_DisplayImage, "DPC2");
+AddAllowedValue(g_PropName_DisplayImage, "DPC3");
+AddAllowedValue(g_PropName_DisplayImage, "DPC4");
 
-   return DEVICE_OK;
+return DEVICE_OK;
+}
+
+std::vector<unsigned char> HalfCircleFrame(unsigned int frameHeight, unsigned int frameWidth, unsigned int diameter, int rotation,
+    int centerX = 0, int centerY = 0)
+{
+    std::vector<unsigned char> frame;
+    frame.reserve(frameHeight * frameWidth);
+    for (unsigned int y = 0; y < frameHeight; y++)
+    {
+        for (unsigned int x = 0; x < frameWidth; x++)
+        {
+            if (IsPointInHalfCircle(centerX, centerY, x, y, diameter, rotation))
+            {
+                frame.push_back(255);
+            }
+            else
+            {
+                frame.push_back(0);
+            }
+        }
+    }
+    return frame;
+}
+
+float DistanceFromCenter(unsigned int centerX, unsigned int centerY, unsigned int pointX, unsigned int pointY)
+{
+    return sqrt((pointX - centerX) * (pointX - centerX) + (pointY - centerY) * (pointY - centerY));
+}
+
+bool IsPointInHalfCircle(unsigned int centerX, unsigned int centerY, 
+    unsigned int pointX, unsigned int pointY, unsigned int diameter, int rotationDeg) 
+{
+    int translatedX = pointX - centerX;
+    int translatedY = pointY - centerY;
+
+    float rotationRad = rotationDeg * 3.14159265 / 180;
+
+    float rotatedX = translatedX * cos(rotationRad) - translatedY * sin(rotationRad);
+
+    if (rotatedX > 0.0f && DistanceFromCenter(centerX, centerX, pointX, pointY) < (float)diameter/2)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
 }
 
 
@@ -341,6 +394,15 @@ double GenericSLM::GetExposure()
    return exposureMs_;
 }
 
+int GenericSLM::StoreImage(const std::string ref, std::vector<unsigned char> pixels)
+{
+    images_[ref] = pixels;
+    if (images_.find(ref) == images_.end()) 
+    {
+        AddAllowedValue(g_PropName_DisplayImage, ref.c_str());
+    }
+    return DEVICE_OK;
+}
 
 int GenericSLM::SetImage(unsigned char* pixels)
 {
@@ -488,7 +550,7 @@ int GenericSLM::OnDisplayImage(MM::PropertyBase* pProp, MM::ActionType eAct)
     else if (eAct == MM::AfterSet)
     {
         pProp->Get(imageName_);
-        SetImage(images_[imageName_]);
+        SetImage(&images_[imageName_][0]);
         DisplayImage();
     }
 

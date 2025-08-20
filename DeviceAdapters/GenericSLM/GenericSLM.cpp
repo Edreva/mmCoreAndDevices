@@ -255,7 +255,7 @@ CreateFloatProperty(g_PropName_DisplayPxSize, pixelSize_, false); // User entere
 // Set up test images to select via device property manager
 images_["Off"] = std::vector<unsigned char>(height_ * width_, 0);
 images_["On"] = std::vector<unsigned char>(height_ * width_, 128);
-images_["DPC1"] = HalfCircleFrame(height_, width_, min(height_,width_), 0, (int)width_/2, (int)height_/2);
+images_["DPC1"] = HalfCircleFrame(height_, width_, min(height_, width_), 0, (int)width_ / 2, (int)height_ / 2);
 images_["DPC2"] = HalfCircleFrame(height_, width_, min(height_, width_), 90, (int)width_ / 2, (int)height_ / 2);
 images_["DPC3"] = HalfCircleFrame(height_, width_, min(height_, width_), 180, (int)width_ / 2, (int)height_ / 2);
 images_["DPC4"] = HalfCircleFrame(height_, width_, min(height_, width_), 270, (int)width_ / 2, (int)height_ / 2);
@@ -312,7 +312,7 @@ bool IsPointInHalfCircle(unsigned int centerX, unsigned int centerY,
 
     float rotatedX = translatedX * cos(rotationRad) - translatedY * sin(rotationRad);
 
-    if (rotatedX > 0.0f && DistanceFromCenter(centerX, centerX, pointX, pointY) < (float)diameter/2)
+    if (rotatedX > 0.0f && DistanceFromCenter(centerX, centerY, pointX, pointY) < (float)diameter/2)
     {
         return true;
     }

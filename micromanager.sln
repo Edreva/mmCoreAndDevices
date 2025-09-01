@@ -1,6 +1,10 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
+<<<<<<< HEAD
 VisualStudioVersion = 17.12.35527.113
+=======
+VisualStudioVersion = 17.12.35527.113 d17.12
+>>>>>>> 24668e6b4d227cb860d76f343a2a799bd7ee7e51
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MMCore", "MMCore\MMCore.vcxproj", "{36571628-728C-4ACD-A47F-503BA91C5D43}"
 EndProject
@@ -506,6 +510,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TeensyPulseGenerator", "Dev
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Elveflow", "DeviceAdapters\Elveflow\Elveflow.vcxproj", "{A4BA201A-BDA5-45F0-8F56-9CE8E1C81123}"
 EndProject
+<<<<<<< HEAD
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NikonKsAdapter", "DeviceAdapters\NikonKs\NikonKsAdapter.vcxproj", "{2B5F1E65-6F76-45B3-959B-62BB309A3A6E}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AMF", "DeviceAdapters\AMF\AMF.vcxproj", "{627365EC-1BB3-4A5D-816B-F0EE9C8F0216}"
@@ -522,6 +527,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "openUC2", "DeviceAdapters\O
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PriorPureFocus", "DeviceAdapters\PriorPureFocus\PriorPureFocus.vcxproj", "{BF5D938C-60E9-400E-8BBB-D9D2C058B4FC}"
 EndProject
+=======
+>>>>>>> 24668e6b4d227cb860d76f343a2a799bd7ee7e51
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test_Display", "DeviceAdapters\Test_Display\Test_Display.vcxproj", "{791158C8-4EBE-4B57-89ED-1A0DF757D6FA}"
 	ProjectSection(ProjectDependencies) = postProject
 		{E3DA287B-6861-49E2-8484-B08DBA020F7D} = {E3DA287B-6861-49E2-8484-B08DBA020F7D}
@@ -1541,6 +1548,7 @@ Global
 		{A4BA201A-BDA5-45F0-8F56-9CE8E1C81123}.Debug|x64.Build.0 = Debug|x64
 		{A4BA201A-BDA5-45F0-8F56-9CE8E1C81123}.Release|x64.ActiveCfg = Release|x64
 		{A4BA201A-BDA5-45F0-8F56-9CE8E1C81123}.Release|x64.Build.0 = Release|x64
+<<<<<<< HEAD
 		{2B5F1E65-6F76-45B3-959B-62BB309A3A6E}.Debug|x64.ActiveCfg = Debug|x64
 		{2B5F1E65-6F76-45B3-959B-62BB309A3A6E}.Debug|x64.Build.0 = Debug|x64
 		{2B5F1E65-6F76-45B3-959B-62BB309A3A6E}.Release|x64.ActiveCfg = Release|x64
@@ -1573,6 +1581,8 @@ Global
 		{BF5D938C-60E9-400E-8BBB-D9D2C058B4FC}.Debug|x64.Build.0 = Debug|x64
 		{BF5D938C-60E9-400E-8BBB-D9D2C058B4FC}.Release|x64.ActiveCfg = Release|x64
 		{BF5D938C-60E9-400E-8BBB-D9D2C058B4FC}.Release|x64.Build.0 = Release|x64
+=======
+>>>>>>> 24668e6b4d227cb860d76f343a2a799bd7ee7e51
 		{791158C8-4EBE-4B57-89ED-1A0DF757D6FA}.Debug|x64.ActiveCfg = Debug|x64
 		{791158C8-4EBE-4B57-89ED-1A0DF757D6FA}.Debug|x64.Build.0 = Debug|x64
 		{791158C8-4EBE-4B57-89ED-1A0DF757D6FA}.Release|x64.ActiveCfg = Release|x64

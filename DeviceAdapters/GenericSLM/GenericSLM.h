@@ -97,6 +97,7 @@ private: // Private data
 															   // to store image index and use GetPropertyData to find image index 
 															   // (storing images in vector) 
 
+   std::map< std::string, unsigned char*> images_;
    std::vector< unsigned char > off_image_;
    std::vector< unsigned char > on_image_;
 

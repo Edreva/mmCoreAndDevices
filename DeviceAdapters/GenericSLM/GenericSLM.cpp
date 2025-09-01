@@ -320,29 +320,6 @@ bool IsPointInHalfCircle(unsigned int centerX, unsigned int centerY,
     {
         return false;
     }
-=======
-   CreateIntegerProperty(g_PropName_DisplayHeightPx, height_, true);
-   CreateIntegerProperty(g_PropName_DisplayWidthPx, width_, true);
-
-   pixelSize_ = 0;
-   CreateFloatProperty(g_PropName_DisplayPxSize, pixelSize_, false); // User entered pixel size. Future use when real image sizes are needed.
-
-   // Set up test images to select via device property manager
-   off_image_ = std::vector<unsigned char>(height_ * width_, 0);
-   on_image_ = std::vector<unsigned char>(height_ * width_, 128);
-   images_["Off"] = &off_image_[0];
-   images_["On"] = &on_image_[0];
-
-   err = CreateStringProperty(g_PropName_DisplayImage, imageName_.c_str(), false,
-       new CPropertyAction(this, &GenericSLM::OnDisplayImage));
-   if (err != DEVICE_OK)
-       return err;
-
-   AddAllowedValue(g_PropName_DisplayImage, "Off");
-   AddAllowedValue(g_PropName_DisplayImage, "On");
-
-   return DEVICE_OK;
->>>>>>> 24668e6b4d227cb860d76f343a2a799bd7ee7e51
 }
 
 
@@ -573,11 +550,7 @@ int GenericSLM::OnDisplayImage(MM::PropertyBase* pProp, MM::ActionType eAct)
     else if (eAct == MM::AfterSet)
     {
         pProp->Get(imageName_);
-<<<<<<< HEAD
         SetImage(&images_[imageName_][0]);
-=======
-        SetImage(images_[imageName_]);
->>>>>>> 24668e6b4d227cb860d76f343a2a799bd7ee7e51
         DisplayImage();
     }
 

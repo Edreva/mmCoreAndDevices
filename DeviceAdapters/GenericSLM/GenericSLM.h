@@ -68,6 +68,8 @@ private: // Action handlers
    int OnInversion(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnMonochromeColor(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnDisplayImage(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnVisibilityFraction(MM::PropertyBase* pProp, MM::ActionType eAct);
+   void CreateImages(double visibilityFraction = 1);
 
 private: // Private data
    const std::string name_;
@@ -79,6 +81,7 @@ private: // Private data
    std::string monitorName_; // Empty string if test mode
    unsigned width_, height_;
    float pixelSize_; // um
+   double visibilityFraction_; // Indicates what portion of the screen is visible to display images.
 
    SLMWindowThread* windowThread_;
    SleepBlocker* sleepBlocker_;

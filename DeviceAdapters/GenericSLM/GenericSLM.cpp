@@ -43,6 +43,7 @@ const char* g_PropName_DisplayImage = "DisplayImage";
 const char* g_PropName_DisplayWidthPx = "DisplayWidthPixels";
 const char* g_PropName_DisplayHeightPx = "DisplayHeightPixels";
 const char* g_PropName_DisplayPxSize = "DisplayPixelSize_um";
+const char* g_PropName_VisibilityFraction = "VisibilityFraction";
 
 
 enum {
@@ -94,7 +95,9 @@ GenericSLM::GenericSLM(const char* name) :
    inversionStr_("Off"),
    monoColor_(SLM_COLOR_WHITE),
    monoColorStr_("White"),
-   imageName_("Off")
+   imageName_("Off"),
+   pixelSize_(0.0),
+   visibilityFraction_(1.0)
 {
    InitializeDefaultErrorMessages();
    SetErrorText(ERR_INVALID_TESTMODE_SIZE,
@@ -251,15 +254,10 @@ CreateIntegerProperty(g_PropName_DisplayWidthPx, width_, true);
 
 pixelSize_ = 0;
 CreateFloatProperty(g_PropName_DisplayPxSize, pixelSize_, false); // User entered pixel size. Future use when real image sizes are needed.
-
+CreateFloatProperty(g_PropName_VisibilityFraction, visibilityFraction_, false,
+    new CPropertyAction(this, &GenericSLM::OnVisibilityFraction));
 // Set up test images to select via device property manager
-images_["Off"] = std::vector<unsigned char>(height_ * width_, 0);
-images_["On"] = std::vector<unsigned char>(height_ * width_, 128);
-images_["DPC1"] = HalfCircleFrame(height_, width_, min(height_, width_), 0, (int)width_ / 2, (int)height_ / 2);
-images_["DPC2"] = HalfCircleFrame(height_, width_, min(height_, width_), 90, (int)width_ / 2, (int)height_ / 2);
-images_["DPC3"] = HalfCircleFrame(height_, width_, min(height_, width_), 180, (int)width_ / 2, (int)height_ / 2);
-images_["DPC4"] = HalfCircleFrame(height_, width_, min(height_, width_), 270, (int)width_ / 2, (int)height_ / 2);
-
+CreateImages();
 err = CreateStringProperty(g_PropName_DisplayImage, imageName_.c_str(), false,
     new CPropertyAction(this, &GenericSLM::OnDisplayImage));
 if (err != DEVICE_OK)
@@ -271,6 +269,9 @@ AddAllowedValue(g_PropName_DisplayImage, "DPC1");
 AddAllowedValue(g_PropName_DisplayImage, "DPC2");
 AddAllowedValue(g_PropName_DisplayImage, "DPC3");
 AddAllowedValue(g_PropName_DisplayImage, "DPC4");
+
+SetImage(&images_[imageName_][0]);
+DisplayImage();
 
 return DEVICE_OK;
 }
@@ -514,6 +515,8 @@ int GenericSLM::OnInversion(MM::PropertyBase* pProp, MM::ActionType eAct)
       if (ret != DEVICE_OK)
          return ret;
       invert_ = (data != 0);
+      SetImage(&images_[imageName_][0]);
+      DisplayImage();
    }
 
    return DEVICE_OK;
@@ -535,6 +538,8 @@ int GenericSLM::OnMonochromeColor(MM::PropertyBase* pProp, MM::ActionType eAct)
       if (ret != DEVICE_OK)
          return ret;
       monoColor_ = (SLMColor)data;
+      SetImage(&images_[imageName_][0]);
+      DisplayImage();
    }
 
    return DEVICE_OK;
@@ -555,4 +560,33 @@ int GenericSLM::OnDisplayImage(MM::PropertyBase* pProp, MM::ActionType eAct)
     }
 
     return DEVICE_OK;
+}
+
+int GenericSLM::OnVisibilityFraction(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+    if (eAct == MM::BeforeGet)
+    {
+        pProp->Set(visibilityFraction_);
+    }
+    else if (eAct == MM::AfterSet)
+    {
+        pProp->Get(visibilityFraction_);
+        CreateImages(visibilityFraction_);
+        SetImage(&images_[imageName_][0]);
+        DisplayImage();
+    }
+    return DEVICE_OK;
+}
+
+void GenericSLM::CreateImages(double visibilityFraction)
+{
+    images_["Off"] = std::vector<unsigned char>(height_ * width_, 0);
+    images_["On"] = std::vector<unsigned char>(height_ * width_, 255);
+    unsigned int diameter = static_cast<unsigned int>(round(min(height_, width_) * visibilityFraction));
+    unsigned int centerX = static_cast<unsigned int>(round(width_ / 2 * visibilityFraction));
+    unsigned int centerY = static_cast<unsigned int>(round(height_ / 2 * visibilityFraction));
+    images_["DPC1"] = HalfCircleFrame(height_, width_, diameter, 0, centerX, centerY);
+    images_["DPC2"] = HalfCircleFrame(height_, width_, diameter, 90, centerX, centerY);
+    images_["DPC3"] = HalfCircleFrame(height_, width_, diameter, 180, centerX, centerY);
+    images_["DPC4"] = HalfCircleFrame(height_, width_, diameter, 270, centerX, centerY);
 }

@@ -91,7 +91,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Display.cpp" />
     <ClCompile Include="GenericSLM.cpp" />
     <ClCompile Include="Monitors.cpp" />
     <ClCompile Include="OffscreenBuffer.cpp" />
@@ -102,7 +101,6 @@
     <ClCompile Include="SLMWindowThread.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Display.h" />
     <ClInclude Include="GenericSLM.h" />
     <ClInclude Include="Monitors.h" />
     <ClInclude Include="OffscreenBuffer.h" />

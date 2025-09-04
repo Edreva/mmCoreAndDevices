@@ -61,15 +61,9 @@ public:
    virtual int IsSLMSequenceable(bool& isSequenceable) const
    { isSequenceable = false; return DEVICE_OK; }
 
-   // Display API
-   int StoreImage(const std::string ref, std::vector<unsigned char> pixels);
-
 private: // Action handlers
    int OnInversion(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnMonochromeColor(MM::PropertyBase* pProp, MM::ActionType eAct);
-   int OnDisplayImage(MM::PropertyBase* pProp, MM::ActionType eAct);
-   int OnVisibilityFraction(MM::PropertyBase* pProp, MM::ActionType eAct);
-   void CreateImages(double visibilityFraction = 1);
 
 private: // Private data
    const std::string name_;
@@ -80,8 +74,6 @@ private: // Private data
 
    std::string monitorName_; // Empty string if test mode
    unsigned width_, height_;
-   float pixelSize_; // um
-   double visibilityFraction_; // Indicates what portion of the screen is visible to display images.
 
    SLMWindowThread* windowThread_;
    SleepBlocker* sleepBlocker_;
@@ -94,20 +86,7 @@ private: // Private data
 
    SLMColor monoColor_;
    std::string monoColorStr_;
-   
-   std::string imageName_;
-   std::map< std::string, std::vector<unsigned char>> images_; // May be better to use property data of g_PropName_DisplayImage 
-															   // to store image index and use GetPropertyData to find image index 
-															   // (storing images in vector) 
 
 private:
    GenericSLM& operator=(const GenericSLM&);
 };
-
-std::vector<unsigned char> HalfCircleFrame(unsigned int frameHeight, unsigned int frameWidth, unsigned int diameter, int rotation,
-	int centerX, int centerY);
-
-float DistanceFromCenter(unsigned int centerX, unsigned int centerY, unsigned int pointX, unsigned int pointY);
-
-bool IsPointInHalfCircle(unsigned int centerX, unsigned int centerY,
-	unsigned int pointX, unsigned int pointY, unsigned int diameter, int rotationDeg);

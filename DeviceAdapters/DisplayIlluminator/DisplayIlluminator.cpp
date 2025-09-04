@@ -26,6 +26,12 @@ const char* g_PropName_DisplayHeightPx = "DisplayHeightPixels";
 const char* g_PropName_DisplayWidthPx = "DisplayWidthPixels";
 const char* g_PropName_DisplayPxSize = "DisplayPixelSize_um";
 const char* g_PropName_DisplayImage = "DisplayImage";
+const char* g_PropName_DpcDiameter = "DpcDiameter";
+const char* g_PropName_DpcInnerDiameter = "DpcInnerDiameter";
+const char* g_PropName_DfDiameter = "DfDiameter";
+const char* g_PropName_Rotation = "Rotation";
+const char* g_PropName_CenterX = "CenterX";
+const char* g_PropName_CenterY = "CenterY";
 
 
 enum {
@@ -76,6 +82,12 @@ DisplayIlluminator::DisplayIlluminator(const char* name) :
     monoColor_(SLM_COLOR_WHITE),
     pixelSize_(0.0),
     exposureMs_(0.0),
+    centerX_(0),
+    centerY_(0),
+    rotation_(0),
+    dpcDiameter_(0),
+    dpcInnerDiameter_(0),
+    dfDiameter_(0),
     imageName_("Off")
 {
    InitializeDefaultErrorMessages();
@@ -154,12 +166,25 @@ int DisplayIlluminator::Initialize()
     //AddAllowedValue(g_PropName_MonoColor, "Magenta", SLM_COLOR_MAGENTA);
     //AddAllowedValue(g_PropName_MonoColor, "Yellow", SLM_COLOR_YELLOW);
 
-    //
-    // Set up the monitor and window
-    //
+    CreateFloatProperty(g_PropName_DisplayPxSize, pixelSize_, false); // User entered pixel size. Future use when real image sizes are needed.
 
+    err = InitialiseMonitor();
+    if (err != DEVICE_OK)
+        return err;
+
+    err = InitialiseDisplayImage();
+    if (err != DEVICE_OK)
+        return err;
+
+    return DEVICE_OK;
+}
+
+
+int DisplayIlluminator::InitialiseMonitor()
+{
+    // Set up the monitor and window
     long graphicsPortIndex;
-    err = GetCurrentPropertyData(g_PropName_GraphicsPort, graphicsPortIndex);
+    int err = GetCurrentPropertyData(g_PropName_GraphicsPort, graphicsPortIndex);
     if (err != DEVICE_OK)
         return err;
 
@@ -231,11 +256,33 @@ int DisplayIlluminator::Initialize()
     CreateIntegerProperty(g_PropName_DisplayHeightPx, height_, true);
     CreateIntegerProperty(g_PropName_DisplayWidthPx, width_, true);
 
-    CreateFloatProperty(g_PropName_DisplayPxSize, pixelSize_, false); // User entered pixel size. Future use when real image sizes are needed.
+    return DEVICE_OK;
+}
+
+
+int DisplayIlluminator::InitialiseDisplayImage()
+{
+    // Set Defaults
+    centerX_ = static_cast<unsigned int>(round(width_ / 2));
+    centerY_ = static_cast<unsigned int>(round(height_ / 2));
+    dpcDiameter_ = static_cast<unsigned int>(round(min(height_, width_)));
+
+    CreateIntegerProperty(g_PropName_DpcDiameter, dpcDiameter_, false,
+        new CPropertyAction(this, &DisplayIlluminator::OnDpcDiameter));
+    CreateIntegerProperty(g_PropName_DpcInnerDiameter, dpcInnerDiameter_, false,
+        new CPropertyAction(this, &DisplayIlluminator::OnDpcInnerDiameter));
+    CreateIntegerProperty(g_PropName_DfDiameter, dfDiameter_, false,
+        new CPropertyAction(this, &DisplayIlluminator::OnDfDiameter));
+    CreateIntegerProperty(g_PropName_Rotation, rotation_, false,
+        new CPropertyAction(this, &DisplayIlluminator::OnRotation));
+    CreateIntegerProperty(g_PropName_CenterX, centerX_, false,
+        new CPropertyAction(this, &DisplayIlluminator::OnCenterX));
+    CreateIntegerProperty(g_PropName_CenterY, centerY_, false,
+        new CPropertyAction(this, &DisplayIlluminator::OnCenterY));
 
     // Create preset images to select via device property manager
     CreateImages();
-    err = CreateStringProperty(g_PropName_DisplayImage, imageName_.c_str(), false,
+    int err = CreateStringProperty(g_PropName_DisplayImage, imageName_.c_str(), false,
         new CPropertyAction(this, &DisplayIlluminator::OnDisplayImage));
     if (err != DEVICE_OK)
         return err;
@@ -253,7 +300,6 @@ int DisplayIlluminator::Initialize()
 
     return DEVICE_OK;
 }
-
 
 // Copied from GenericSLM
 int DisplayIlluminator::Shutdown()
@@ -446,6 +492,63 @@ int DisplayIlluminator::OnDisplayImage(MM::PropertyBase* pProp, MM::ActionType e
     return DEVICE_OK;
 }
 
+int DisplayIlluminator::OnImagePropUpdate(MM::PropertyBase* pProp, MM::ActionType eAct, unsigned& prop)
+{
+    if (eAct == MM::BeforeGet)
+    {
+        pProp->Set((long)prop);
+    }
+    else if (eAct == MM::AfterSet)
+    {
+        long tempLong;
+        pProp->Get(tempLong);
+        prop = (unsigned) tempLong;
+
+        CreateImages();
+        SetImage(&images_[imageName_][0]);
+        DisplayImage();
+    }
+
+    return DEVICE_OK;
+}
+
+// TODO: Replace with inline functions?
+int DisplayIlluminator::OnDpcDiameter(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+    return OnImagePropUpdate(pProp, eAct, dpcDiameter_);
+}
+int DisplayIlluminator::OnDpcInnerDiameter(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+    return OnImagePropUpdate(pProp, eAct, dpcInnerDiameter_);
+}
+int DisplayIlluminator::OnDfDiameter(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+    return OnImagePropUpdate(pProp, eAct, dfDiameter_);
+}
+int DisplayIlluminator::OnRotation(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+    return OnImagePropUpdate(pProp, eAct, rotation_);
+}
+int DisplayIlluminator::OnCenterX(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+    return OnImagePropUpdate(pProp, eAct, centerX_);
+}
+int DisplayIlluminator::OnCenterY(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+    return OnImagePropUpdate(pProp, eAct, centerY_);
+}
+
+
+void DisplayIlluminator::CreateImages()
+{
+    images_["Off"] = std::vector<unsigned char>(height_ * width_, 0);
+    images_["On"] = std::vector<unsigned char>(height_ * width_, 255);
+    images_["DPC1"] = HalfCircleFrame(height_, width_, dpcDiameter_, 0 + rotation_, centerX_, centerY_);
+    images_["DPC2"] = HalfCircleFrame(height_, width_, dpcDiameter_, 90 + rotation_, centerX_, centerY_);
+    images_["DPC3"] = HalfCircleFrame(height_, width_, dpcDiameter_, 180 + rotation_, centerX_, centerY_);
+    images_["DPC4"] = HalfCircleFrame(height_, width_, dpcDiameter_, 270 + rotation_, centerX_, centerY_);
+}
+
 
 std::vector<unsigned char> HalfCircleFrame(unsigned int frameHeight, unsigned int frameWidth, unsigned int diameter, int rotation,
     int centerX = 0, int centerY = 0)
@@ -497,15 +600,3 @@ bool IsPointInHalfCircle(unsigned int centerX, unsigned int centerY,
 }
 
 
-void DisplayIlluminator::CreateImages()
-{
-    images_["Off"] = std::vector<unsigned char>(height_ * width_, 0);
-    images_["On"] = std::vector<unsigned char>(height_ * width_, 255);
-    unsigned int diameter = static_cast<unsigned int>(round(min(height_, width_)));
-    unsigned int centerX = static_cast<unsigned int>(round(width_ / 2));
-    unsigned int centerY = static_cast<unsigned int>(round(height_ / 2));
-    images_["DPC1"] = HalfCircleFrame(height_, width_, diameter, 0, centerX, centerY);
-    images_["DPC2"] = HalfCircleFrame(height_, width_, diameter, 90, centerX, centerY);
-    images_["DPC3"] = HalfCircleFrame(height_, width_, diameter, 180, centerX, centerY);
-    images_["DPC4"] = HalfCircleFrame(height_, width_, diameter, 270, centerX, centerY);
-}

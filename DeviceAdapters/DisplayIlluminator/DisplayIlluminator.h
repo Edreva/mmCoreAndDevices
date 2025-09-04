@@ -49,9 +49,21 @@ public:
 	}
 private:
 	void CreateImages();
+	int InitialiseDisplayImage();
+	int InitialiseMonitor();
 	
 	// Action Handlers
+	int OnImagePropUpdate(MM::PropertyBase* pProp, MM::ActionType eAct, unsigned& prop); // Generic
+
 	int OnDisplayImage(MM::PropertyBase* pProp, MM::ActionType eAct);
+	int OnDpcDiameter(MM::PropertyBase* pProp, MM::ActionType eAct);
+	int OnDpcInnerDiameter(MM::PropertyBase* pProp, MM::ActionType eAct);
+	int OnDfDiameter(MM::PropertyBase* pProp, MM::ActionType eAct);
+	int OnRotation(MM::PropertyBase* pProp, MM::ActionType eAct);
+	//int OnPcDiameter(MM::PropertyBase* pProp, MM::ActionType eAct);
+	//int OnPcInnerDiameter(MM::PropertyBase* pProp, MM::ActionType eAct);
+	int OnCenterX(MM::PropertyBase* pProp, MM::ActionType eAct);
+	int OnCenterY(MM::PropertyBase* pProp, MM::ActionType eAct);
 
 private:
 	const std::string name_;
@@ -64,6 +76,12 @@ private:
 	SLMWindowThread* windowThread_;
 	SleepBlocker* sleepBlocker_;
 	RefreshWaiter refreshWaiter_;
+
+	unsigned centerX_, centerY_;
+	unsigned dpcDiameter_;
+	unsigned dpcInnerDiameter_;
+	unsigned dfDiameter_;
+	unsigned rotation_;
 
 	std::string imageName_; // Name of currently selected image
 	std::map< std::string, std::vector<unsigned char>> images_; // Maps image names to pixel vectors

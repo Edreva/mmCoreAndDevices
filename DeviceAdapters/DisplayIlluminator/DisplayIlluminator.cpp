@@ -1,0 +1,511 @@
+//
+//
+//
+
+#include "DisplayIlluminator.h"
+
+#include "Monitors.h"
+#include "SLMWindowThread.h"
+#include "SleepBlocker.h"
+#include "OffscreenBuffer.h"
+
+#include "ModuleInterface.h"
+#include "DeviceUtils.h"
+
+#include <Windows.h>
+
+#include <boost/lexical_cast.hpp>
+
+#include <algorithm>
+
+const char* g_DisplayIllumName = "DisplayIlluminator";
+const char* g_PropName_GraphicsPort = "GraphicsPort";
+const char* g_PropName_TestModeWidth = "TestModeWidth";
+const char* g_PropName_TestModeHeight = "TestModeHeight";
+const char* g_PropName_DisplayHeightPx = "DisplayHeightPixels";
+const char* g_PropName_DisplayWidthPx = "DisplayWidthPixels";
+const char* g_PropName_DisplayPxSize = "DisplayPixelSize_um";
+const char* g_PropName_DisplayImage = "DisplayImage";
+
+
+enum {
+	ERR_INVALID_TESTMODE_SIZE = 20000,
+	ERR_CANNOT_DETACH,
+	ERR_CANNOT_ATTACH,
+	ERR_OFFSCREEN_BUFFER_UNAVAILABLE,
+	ERR_NO_DISPLAY_CONTEXT
+};
+
+
+MODULE_API void InitializeModuleData()
+{
+	RegisterDevice(g_DisplayIllumName, MM::SLMDevice,
+		"Display screen controlled through computer graphics output");
+}
+
+
+MODULE_API MM::Device* CreateDevice(const char* deviceName)
+{
+	if (deviceName == 0)
+		return 0;
+
+	if (strcmp(deviceName, g_DisplayIllumName) == 0)
+	{
+		DisplayIlluminator* pDisplayIlluminator = new DisplayIlluminator(g_DisplayIllumName);
+		return pDisplayIlluminator;
+	}
+
+	return 0;
+}
+
+
+MODULE_API void DeleteDevice(MM::Device* pDevice)
+{
+	delete pDevice;
+}
+
+
+DisplayIlluminator::DisplayIlluminator(const char* name) : 
+	name_(name),
+	width_(0),
+	height_(0),
+    invert_(false),
+    shouldBlitInverted_(false),
+    sleepBlocker_(0),
+    windowThread_(0),
+    monoColor_(SLM_COLOR_WHITE),
+    pixelSize_(0.0),
+    exposureMs_(0.0),
+    imageName_("Off")
+{
+   InitializeDefaultErrorMessages();
+   SetErrorText(ERR_INVALID_TESTMODE_SIZE,
+		 "Invalid test mode window size");
+   SetErrorText(ERR_CANNOT_DETACH,
+		 "Failed to detach monitor from desktop");
+   SetErrorText(ERR_CANNOT_ATTACH,
+		 "Failed to attach monitor to desktop");
+   SetErrorText(ERR_OFFSCREEN_BUFFER_UNAVAILABLE,
+		 "Cannot set image (device uninitialized?)");
+
+   availableMonitors_ = GetMonitorNames(true, false);
+
+   // Pre-init Properties
+
+   CreateStringProperty(g_PropName_GraphicsPort, "TestMode", false, 0, true);
+   AddAllowedValue(g_PropName_GraphicsPort, "TestMode", 0);
+
+   // Map available displays 0 thru N to property data 1 thru N + 1
+   for (unsigned i = 0; i < availableMonitors_.size(); ++i)
+   {
+	   AddAllowedValue(g_PropName_GraphicsPort,
+		   availableMonitors_[i].c_str(), i + 1);
+   }
+
+   CreateIntegerProperty(g_PropName_TestModeWidth, 128, false, 0, true);
+   CreateIntegerProperty(g_PropName_TestModeHeight, 128, false, 0, true);
+}
+
+
+DisplayIlluminator::~DisplayIlluminator()
+{
+	Shutdown();
+}
+
+
+void DisplayIlluminator::GetName(char* name) const
+{
+	CDeviceUtils::CopyLimitedString(name, name_.c_str());
+}
+
+int DisplayIlluminator::Initialize()
+{
+    Shutdown();
+
+    //
+    // Create post-init properties
+    //
+
+    int err = CreateStringProperty(MM::g_Keyword_Name, name_.c_str(), true);
+    if (err != DEVICE_OK)
+        return err;
+    err = CreateStringProperty(MM::g_Keyword_Description,
+        "Display screen controlled through computer graphics output", true);
+    if (err != DEVICE_OK)
+        return err;
+
+    // TODO: Implement or delete if unnecessary 
+    //err = CreateStringProperty(g_PropName_Inversion, inversionStr_.c_str(), false,
+    //    new CPropertyAction(this, &DisplayIlluminator::OnInversion));
+    //if (err != DEVICE_OK)
+    //    return err;
+    //AddAllowedValue(g_PropName_Inversion, "Off", 0);
+    //AddAllowedValue(g_PropName_Inversion, "On", 1);
+
+    //err = CreateStringProperty(g_PropName_MonoColor, monoColorStr_.c_str(), false,
+    //    new CPropertyAction(this, &DisplayIlluminator::OnMonochromeColor));
+    //if (err != DEVICE_OK)
+    //    return err;
+    //AddAllowedValue(g_PropName_MonoColor, "White", SLM_COLOR_WHITE);
+    //AddAllowedValue(g_PropName_MonoColor, "Red", SLM_COLOR_RED);
+    //AddAllowedValue(g_PropName_MonoColor, "Green", SLM_COLOR_GREEN);
+    //AddAllowedValue(g_PropName_MonoColor, "Blue", SLM_COLOR_BLUE);
+    //AddAllowedValue(g_PropName_MonoColor, "Cyan", SLM_COLOR_CYAN);
+    //AddAllowedValue(g_PropName_MonoColor, "Magenta", SLM_COLOR_MAGENTA);
+    //AddAllowedValue(g_PropName_MonoColor, "Yellow", SLM_COLOR_YELLOW);
+
+    //
+    // Set up the monitor and window
+    //
+
+    long graphicsPortIndex;
+    err = GetCurrentPropertyData(g_PropName_GraphicsPort, graphicsPortIndex);
+    if (err != DEVICE_OK)
+        return err;
+
+    LONG x, y, w, h;
+    std::vector<std::string> desktopMonitors;
+    if (graphicsPortIndex == 0) // Test mode
+    {
+        err = GetProperty(g_PropName_TestModeWidth, w);
+        if (err != DEVICE_OK)
+            return err;
+        err = GetProperty(g_PropName_TestModeHeight, h);
+        if (err != DEVICE_OK)
+            return err;
+
+        if (w < 1 || h < 1)
+            return ERR_INVALID_TESTMODE_SIZE;
+
+        // The top-left of the primary desktop monior is (0, 0), so this is a
+        // safe position for the window
+        x = y = 100;
+
+        desktopMonitors = GetMonitorNames(false, true);
+    }
+    else // Real monitor
+    {
+        // Map property data 1 thru N + 1 to available monitors 0 thru N
+        monitorName_ = availableMonitors_[graphicsPortIndex - 1];
+
+        if (!DetachMonitorFromDesktop(monitorName_))
+        {
+            monitorName_ = "";
+            return ERR_CANNOT_DETACH;
+        }
+
+        desktopMonitors = GetMonitorNames(false, true);
+
+        LONG posX, posY;
+        GetRightmostMonitorTopRight(desktopMonitors, posX, posY);
+
+        if (!AttachMonitorToDesktop(monitorName_, posX, posY))
+        {
+            monitorName_ = "";
+            return ERR_CANNOT_ATTACH;
+        }
+
+        GetMonitorRect(monitorName_, x, y, w, h);
+    }
+
+    std::string windowTitle = "MM_DisplayIlluminator " +
+        boost::lexical_cast<std::string>(w) + "x" +
+        boost::lexical_cast<std::string>(h) + " [" +
+        (monitorName_.empty() ? "Test Mode" : monitorName_) +
+        "]";
+
+    windowThread_ = new SLMWindowThread(monitorName_.empty(),
+        windowTitle, x, y, w, h);
+    windowThread_->Show();
+
+    RECT mouseClipRect;
+    if (GetBoundingRect(desktopMonitors, mouseClipRect))
+        sleepBlocker_ = new SleepBlocker(mouseClipRect);
+    else
+        sleepBlocker_ = new SleepBlocker();
+    sleepBlocker_->Start();
+
+    width_ = w;
+    height_ = h;
+
+    CreateIntegerProperty(g_PropName_DisplayHeightPx, height_, true);
+    CreateIntegerProperty(g_PropName_DisplayWidthPx, width_, true);
+
+    CreateFloatProperty(g_PropName_DisplayPxSize, pixelSize_, false); // User entered pixel size. Future use when real image sizes are needed.
+
+    // Create preset images to select via device property manager
+    CreateImages();
+    err = CreateStringProperty(g_PropName_DisplayImage, imageName_.c_str(), false,
+        new CPropertyAction(this, &DisplayIlluminator::OnDisplayImage));
+    if (err != DEVICE_OK)
+        return err;
+
+    AddAllowedValue(g_PropName_DisplayImage, "Off");
+    AddAllowedValue(g_PropName_DisplayImage, "On");
+    AddAllowedValue(g_PropName_DisplayImage, "DPC1");
+    AddAllowedValue(g_PropName_DisplayImage, "DPC2");
+    AddAllowedValue(g_PropName_DisplayImage, "DPC3");
+    AddAllowedValue(g_PropName_DisplayImage, "DPC4");
+
+    // Initialise display
+    SetImage(&images_[imageName_][0]);
+    DisplayImage();
+
+    return DEVICE_OK;
+}
+
+
+// Copied from GenericSLM
+int DisplayIlluminator::Shutdown()
+{
+    width_ = height_ = 0;
+
+    if (sleepBlocker_)
+    {
+        sleepBlocker_->Stop();
+        delete sleepBlocker_;
+        sleepBlocker_ = 0;
+    }
+
+    if (windowThread_)
+    {
+        delete windowThread_;
+        windowThread_ = 0;
+    }
+
+    if (!monitorName_.empty())
+    {
+        DetachMonitorFromDesktop(monitorName_);
+        monitorName_ = "";
+    }
+
+    return DEVICE_OK;
+}
+
+
+// Copied from GenericSLM
+bool DisplayIlluminator::Busy()
+{
+    // TODO We _could_ make the wait for vertical sync asynchronous
+    // (Make sure first that Projector knows to wait for non-busy)
+    return false;
+}
+
+unsigned int DisplayIlluminator::GetWidth()
+{
+    return width_;
+}
+
+
+unsigned int DisplayIlluminator::GetHeight()
+{
+    return height_;
+}
+
+
+unsigned int DisplayIlluminator::GetNumberOfComponents()
+{
+    return 3;
+}
+
+
+unsigned int DisplayIlluminator::GetBytesPerPixel()
+{
+    return 4;
+}
+
+
+[[deprecated("Currently unused")]]
+int DisplayIlluminator::SetExposure(double exposureMs)
+{
+    exposureMs_ = exposureMs;
+    return DEVICE_OK;
+}
+
+
+[[deprecated("Currently unused")]]
+double DisplayIlluminator::GetExposure()
+{
+    return exposureMs_;
+}
+
+
+// Copied from GenericSLM
+int DisplayIlluminator::SetImage(unsigned char* pixels)
+{
+    OffscreenBuffer* offscreen = windowThread_->GetOffscreenBuffer();
+    if (!offscreen)
+        return ERR_OFFSCREEN_BUFFER_UNAVAILABLE;
+
+    offscreen->DrawImage(pixels, monoColor_, invert_);
+    return DEVICE_OK;
+}
+
+
+// Copied from GenericSLM
+int DisplayIlluminator::SetImage(unsigned int* pixels)
+{
+    OffscreenBuffer* offscreen = windowThread_->GetOffscreenBuffer();
+    if (!offscreen)
+        return ERR_OFFSCREEN_BUFFER_UNAVAILABLE;
+
+    offscreen->DrawImage(pixels);
+    shouldBlitInverted_ = invert_;
+    return DEVICE_OK;
+}
+
+
+// Copied from GenericSLM
+int DisplayIlluminator::SetPixelsTo(unsigned char red, unsigned char green, unsigned char blue)
+{
+    OffscreenBuffer* offscreen = windowThread_->GetOffscreenBuffer();
+    if (!offscreen)
+        return ERR_OFFSCREEN_BUFFER_UNAVAILABLE;
+
+    unsigned char xorMask = invert_ ? 0xff : 0x00;
+
+    COLORREF color(RGB(red ^ xorMask, green ^ xorMask, blue ^ xorMask));
+
+    offscreen->FillWithColor(color);
+    shouldBlitInverted_ = false;
+    return DisplayImage();
+}
+
+
+// Copied from GenericSLM
+int DisplayIlluminator::SetPixelsTo(unsigned char intensity)
+{
+    OffscreenBuffer* offscreen = windowThread_->GetOffscreenBuffer();
+    if (!offscreen)
+        return ERR_OFFSCREEN_BUFFER_UNAVAILABLE;
+
+    intensity ^= (invert_ ? 0xff : 0x00);
+
+    unsigned char redMask = (monoColor_ & SLM_COLOR_RED) ? 0xff : 0x00;
+    unsigned char greenMask = (monoColor_ & SLM_COLOR_GREEN) ? 0xff : 0x00;
+    unsigned char blueMask = (monoColor_ & SLM_COLOR_BLUE) ? 0xff : 0x00;
+
+    COLORREF color(RGB(intensity & redMask,
+        intensity & greenMask,
+        intensity & blueMask));
+
+    offscreen->FillWithColor(color);
+    shouldBlitInverted_ = false;
+    return DisplayImage();
+}
+
+
+// Copied from GenericSLM
+int DisplayIlluminator::DisplayImage()
+{
+    OffscreenBuffer* offscreen = windowThread_->GetOffscreenBuffer();
+    if (!offscreen)
+        return ERR_OFFSCREEN_BUFFER_UNAVAILABLE;
+
+    DWORD op = shouldBlitInverted_ ? NOTSRCCOPY : SRCCOPY;
+
+    int ret = refreshWaiter_.WaitForVerticalBlank();
+    if (ret != DEVICE_OK)
+    {
+        return ret;
+    }
+    HDC onscreenDC = windowThread_->GetDC();
+    if (onscreenDC == NULL)
+    {
+        return ERR_NO_DISPLAY_CONTEXT;
+    }
+    DWORD result = offscreen->BlitTo(onscreenDC, op);
+    // Wait until the image is actually displayed
+    ret = refreshWaiter_.WaitForVerticalBlank();
+    if (ret != DEVICE_OK)
+    {
+        return ret;
+    }
+    // TODO use FormatMessage function to generate error string
+
+    // If we do not release the HDC< we'll run out of available contexts
+    // Alternatively, we could possibly store one and re-use...
+    windowThread_->ReleaseDC(onscreenDC);
+    return (int)result;
+}
+
+
+int DisplayIlluminator::OnDisplayImage(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+    if (eAct == MM::BeforeGet)
+    {
+        pProp->Set(imageName_.c_str());
+    }
+    else if (eAct == MM::AfterSet)
+    {
+        pProp->Get(imageName_);
+        SetImage(&images_[imageName_][0]);
+        DisplayImage();
+    }
+
+    return DEVICE_OK;
+}
+
+
+std::vector<unsigned char> HalfCircleFrame(unsigned int frameHeight, unsigned int frameWidth, unsigned int diameter, int rotation,
+    int centerX = 0, int centerY = 0)
+{
+    std::vector<unsigned char> frame;
+    frame.reserve(frameHeight * frameWidth);
+    for (unsigned int y = 0; y < frameHeight; y++)
+    {
+        for (unsigned int x = 0; x < frameWidth; x++)
+        {
+            if (IsPointInHalfCircle(centerX, centerY, x, y, diameter, rotation))
+            {
+                frame.push_back(255);
+            }
+            else
+            {
+                frame.push_back(0);
+            }
+        }
+    }
+    return frame;
+}
+
+
+float DistanceFromCenter(unsigned int centerX, unsigned int centerY, unsigned int pointX, unsigned int pointY)
+{
+    return sqrt((pointX - centerX) * (pointX - centerX) + (pointY - centerY) * (pointY - centerY));
+}
+
+
+bool IsPointInHalfCircle(unsigned int centerX, unsigned int centerY,
+    unsigned int pointX, unsigned int pointY, unsigned int diameter, int rotationDeg)
+{
+    int translatedX = pointX - centerX;
+    int translatedY = pointY - centerY;
+
+    float rotationRad = rotationDeg * 3.14159265 / 180;
+
+    float rotatedX = translatedX * cos(rotationRad) - translatedY * sin(rotationRad);
+
+    if (rotatedX > 0.0f && DistanceFromCenter(centerX, centerY, pointX, pointY) < (float)diameter / 2)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+
+void DisplayIlluminator::CreateImages()
+{
+    images_["Off"] = std::vector<unsigned char>(height_ * width_, 0);
+    images_["On"] = std::vector<unsigned char>(height_ * width_, 255);
+    unsigned int diameter = static_cast<unsigned int>(round(min(height_, width_)));
+    unsigned int centerX = static_cast<unsigned int>(round(width_ / 2));
+    unsigned int centerY = static_cast<unsigned int>(round(height_ / 2));
+    images_["DPC1"] = HalfCircleFrame(height_, width_, diameter, 0, centerX, centerY);
+    images_["DPC2"] = HalfCircleFrame(height_, width_, diameter, 90, centerX, centerY);
+    images_["DPC3"] = HalfCircleFrame(height_, width_, diameter, 180, centerX, centerY);
+    images_["DPC4"] = HalfCircleFrame(height_, width_, diameter, 270, centerX, centerY);
+}

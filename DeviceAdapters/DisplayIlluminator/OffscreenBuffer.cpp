@@ -98,7 +98,7 @@ void OffscreenBuffer::DrawImage(unsigned int* pixels)
 }
 
 
-void OffscreenBuffer::DrawImage(unsigned char* pixels, SLMColor color, bool invert)
+void OffscreenBuffer::DrawImage(unsigned char* pixels, std::string color, bool invert)
 {
    DWORD srcWidthBytes = width_;
    DWORD destRowPadding = GetWidthBytes() - (4 * width_);
@@ -107,9 +107,9 @@ void OffscreenBuffer::DrawImage(unsigned char* pixels, SLMColor color, bool inve
    unsigned char* pDest = (unsigned char*)pixels_;
 
    unsigned char xorMask = invert ? 0xff : 0x00;
-   unsigned char blueMask = (color & SLM_COLOR_BLUE) ? 0xff : 0x00;
-   unsigned char greenMask = (color & SLM_COLOR_GREEN) ? 0xff : 0x00;
-   unsigned char redMask = (color & SLM_COLOR_RED) ? 0xff : 0x00;
+   unsigned char redMask = (unsigned char)strtoul(color.substr(0, 2).c_str(), nullptr, 16);
+   unsigned char greenMask = (unsigned char)strtoul(color.substr(2, 2).c_str(), nullptr, 16);
+   unsigned char blueMask = (unsigned char)strtoul(color.substr(4, 2).c_str(), nullptr, 16);
 
    for (unsigned row = 0; row < height_; ++row)
    {
@@ -117,9 +117,9 @@ void OffscreenBuffer::DrawImage(unsigned char* pixels, SLMColor color, bool inve
       {
          unsigned char pixel = pSrc[col] ^ xorMask;
 
-         *pDest++ = pixel & blueMask;
-         *pDest++ = pixel & greenMask;
-         *pDest++ = pixel & redMask;
+         *pDest++ = (pixel * blueMask) >> 8; // Accept tiny imprecision for speed
+         *pDest++ = (pixel * greenMask) >> 8;
+         *pDest++ = (pixel * redMask) >> 8;
          *pDest++ = 0; // Unused alpha channel
       }
 

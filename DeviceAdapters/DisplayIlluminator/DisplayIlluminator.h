@@ -7,7 +7,6 @@
 #include "DeviceBase.h"
 #include "DeviceUtils.h"
 
-#include "SLMColor.h"
 #include "RefreshWaiter.h"
 
 class SLMWindowThread;
@@ -84,16 +83,15 @@ private:
 	unsigned rotation_;
 
 	std::string imageName_; // Name of currently selected image
-	std::map< std::string, std::vector<unsigned char>> images_; // Maps image names to pixel vectors
-																// TODO: Add or change to accommodate unsigned int (colour) images
+	std::map< std::string, std::vector<unsigned int>> images_; // Maps image names to pixel vectors
 	// Currently unused - TODO
 	double exposureMs_;
 	bool invert_;
 	bool shouldBlitInverted_;
 	float pixelSize_;
-	SLMColor monoColor_;
+	std::string monoColor_;
 };
 
-std::vector<unsigned char> HalfCircleFrame(unsigned int frameHeight, unsigned int frameWidth, unsigned int diameter, int rotation, int centerX, int centerY);
+std::vector<unsigned int> HalfCircleFrame(unsigned int frameHeight, unsigned int frameWidth, unsigned int diameter, int rotation, std::string colourHex, int centerX, int centerY);
 float DistanceFromCenter(unsigned int centerX, unsigned int centerY, unsigned int pointX, unsigned int pointY);
 bool IsPointInHalfCircle(unsigned int centerX, unsigned int centerY, unsigned int pointX, unsigned int pointY, unsigned int diameter, int rotationDeg);

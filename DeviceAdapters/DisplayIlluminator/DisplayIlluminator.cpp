@@ -79,7 +79,7 @@ DisplayIlluminator::DisplayIlluminator(const char* name) :
     shouldBlitInverted_(false),
     sleepBlocker_(0),
     windowThread_(0),
-    monoColor_(SLM_COLOR_WHITE),
+    monoColor_("00FF00"),
     pixelSize_(0.0),
     exposureMs_(0.0),
     centerX_(0),
@@ -427,13 +427,14 @@ int DisplayIlluminator::SetPixelsTo(unsigned char intensity)
 
     intensity ^= (invert_ ? 0xff : 0x00);
 
-    unsigned char redMask = (monoColor_ & SLM_COLOR_RED) ? 0xff : 0x00;
-    unsigned char greenMask = (monoColor_ & SLM_COLOR_GREEN) ? 0xff : 0x00;
-    unsigned char blueMask = (monoColor_ & SLM_COLOR_BLUE) ? 0xff : 0x00;
+    unsigned char redChannel = (unsigned char)strtoul(monoColor_.substr(0, 2).c_str(), nullptr, 16);
+    unsigned char greenChannel = (unsigned char)strtoul(monoColor_.substr(2, 2).c_str(), nullptr, 16);
+    unsigned char blueChannel = (unsigned char)strtoul(monoColor_.substr(4, 2).c_str(), nullptr, 16);
 
-    COLORREF color(RGB(intensity & redMask,
-        intensity & greenMask,
-        intensity & blueMask));
+    COLORREF color(RGB(
+        (intensity * redChannel) >> 8, // Accept tiny imprecision for speed
+        (intensity * greenChannel) >> 8,
+        (intensity * blueChannel) >> 8));
 
     offscreen->FillWithColor(color);
     shouldBlitInverted_ = false;
@@ -541,19 +542,19 @@ int DisplayIlluminator::OnCenterY(MM::PropertyBase* pProp, MM::ActionType eAct)
 
 void DisplayIlluminator::CreateImages()
 {
-    images_["Off"] = std::vector<unsigned char>(height_ * width_, 0);
-    images_["On"] = std::vector<unsigned char>(height_ * width_, 255);
-    images_["DPC1"] = HalfCircleFrame(height_, width_, dpcDiameter_, 0 + rotation_, centerX_, centerY_);
-    images_["DPC2"] = HalfCircleFrame(height_, width_, dpcDiameter_, 90 + rotation_, centerX_, centerY_);
-    images_["DPC3"] = HalfCircleFrame(height_, width_, dpcDiameter_, 180 + rotation_, centerX_, centerY_);
-    images_["DPC4"] = HalfCircleFrame(height_, width_, dpcDiameter_, 270 + rotation_, centerX_, centerY_);
+    images_["Off"] = std::vector<unsigned int>(height_ * width_, 0);
+    images_["On"] = std::vector<unsigned int>(height_ * width_, UINT32_MAX);
+    images_["DPC1"] = HalfCircleFrame(height_, width_, dpcDiameter_, 0 + rotation_, monoColor_, centerX_, centerY_);
+    images_["DPC2"] = HalfCircleFrame(height_, width_, dpcDiameter_, 90 + rotation_, monoColor_, centerX_, centerY_);
+    images_["DPC3"] = HalfCircleFrame(height_, width_, dpcDiameter_, 180 + rotation_, monoColor_, centerX_, centerY_);
+    images_["DPC4"] = HalfCircleFrame(height_, width_, dpcDiameter_, 270 + rotation_, monoColor_, centerX_, centerY_);
 }
 
 
-std::vector<unsigned char> HalfCircleFrame(unsigned int frameHeight, unsigned int frameWidth, unsigned int diameter, int rotation,
-    int centerX = 0, int centerY = 0)
+std::vector<unsigned int> HalfCircleFrame(unsigned int frameHeight, unsigned int frameWidth, unsigned int diameter,
+    int rotation, std::string colourHex, int centerX = 0, int centerY = 0)
 {
-    std::vector<unsigned char> frame;
+    std::vector<unsigned int> frame;
     frame.reserve(frameHeight * frameWidth);
     for (unsigned int y = 0; y < frameHeight; y++)
     {
@@ -561,7 +562,7 @@ std::vector<unsigned char> HalfCircleFrame(unsigned int frameHeight, unsigned in
         {
             if (IsPointInHalfCircle(centerX, centerY, x, y, diameter, rotation))
             {
-                frame.push_back(255);
+                frame.push_back((unsigned int)strtoul(colourHex.c_str(), nullptr, 16));
             }
             else
             {

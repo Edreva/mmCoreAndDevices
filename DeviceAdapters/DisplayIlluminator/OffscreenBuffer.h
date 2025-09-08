@@ -16,9 +16,8 @@
 
 #pragma once
 
-#include "SLMColor.h"
-
 #include <Windows.h>
+#include <string>
 
 
 class OffscreenBuffer
@@ -40,7 +39,7 @@ public:
 
    void FillWithColor(COLORREF color);
    void DrawImage(unsigned int* pixels); // RGBA
-   void DrawImage(unsigned char* pixels, SLMColor color, bool invert); // Gray8
+   void DrawImage(unsigned char* pixels, std::string color, bool invert); // Gray8
    DWORD BlitTo(HDC onscreenDC, DWORD op);
 
 private:

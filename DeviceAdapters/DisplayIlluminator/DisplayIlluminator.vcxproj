@@ -16,7 +16,6 @@
     <ClInclude Include="OffscreenBuffer.h" />
     <ClInclude Include="RefreshWaiter.h" />
     <ClInclude Include="SleepBlocker.h" />
-    <ClInclude Include="SLMColor.h" />
     <ClInclude Include="SLMWindow.h" />
     <ClInclude Include="SLMWindowClass.h" />
     <ClInclude Include="SLMWindowThread.h" />

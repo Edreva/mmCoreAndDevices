@@ -30,9 +30,6 @@
     <ClInclude Include="SleepBlocker.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SLMColor.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="SLMWindow.h">
       <Filter>Header Files</Filter>
     </ClInclude>

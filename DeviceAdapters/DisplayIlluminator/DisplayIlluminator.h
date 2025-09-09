@@ -52,7 +52,9 @@ private:
 	int InitialiseMonitor();
 	
 	// Action Handlers
-	int OnImagePropUpdate(MM::PropertyBase* pProp, MM::ActionType eAct, unsigned& prop); // Generic
+	// Generics
+	int OnImagePropUpdate(MM::PropertyBase* pProp, MM::ActionType eAct, unsigned& prop); 
+	int OnImagePropUpdate(MM::PropertyBase* pProp, MM::ActionType eAct, std::string& prop);
 
 	int OnDisplayImage(MM::PropertyBase* pProp, MM::ActionType eAct);
 	int OnDpcDiameter(MM::PropertyBase* pProp, MM::ActionType eAct);
@@ -63,6 +65,7 @@ private:
 	//int OnPcInnerDiameter(MM::PropertyBase* pProp, MM::ActionType eAct);
 	int OnCenterX(MM::PropertyBase* pProp, MM::ActionType eAct);
 	int OnCenterY(MM::PropertyBase* pProp, MM::ActionType eAct);
+	int OnMonoColor(MM::PropertyBase* pProp, MM::ActionType eAct);
 
 private:
 	const std::string name_;
@@ -82,6 +85,8 @@ private:
 	unsigned dfDiameter_;
 	unsigned rotation_;
 
+	std::string monoColor_;
+
 	std::string imageName_; // Name of currently selected image
 	std::map< std::string, std::vector<unsigned int>> images_; // Maps image names to pixel vectors
 	// Currently unused - TODO
@@ -89,9 +94,9 @@ private:
 	bool invert_;
 	bool shouldBlitInverted_;
 	float pixelSize_;
-	std::string monoColor_;
+
 };
 
-std::vector<unsigned int> HalfCircleFrame(unsigned int frameHeight, unsigned int frameWidth, unsigned int diameter, int rotation, std::string colourHex, int centerX, int centerY);
+std::vector<unsigned int> HalfCircleFrame(unsigned int frameHeight, unsigned int frameWidth, unsigned int diameter, int rotation, std::string colorHex, int centerX, int centerY);
 float DistanceFromCenter(unsigned int centerX, unsigned int centerY, unsigned int pointX, unsigned int pointY);
 bool IsPointInHalfCircle(unsigned int centerX, unsigned int centerY, unsigned int pointX, unsigned int pointY, unsigned int diameter, int rotationDeg);

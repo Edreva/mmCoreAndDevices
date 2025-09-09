@@ -32,6 +32,7 @@ const char* g_PropName_DfDiameter = "DfDiameter";
 const char* g_PropName_Rotation = "Rotation";
 const char* g_PropName_CenterX = "CenterX";
 const char* g_PropName_CenterY = "CenterY";
+const char* g_PropName_MonoColor = "MonoColor";
 
 
 enum {
@@ -279,6 +280,8 @@ int DisplayIlluminator::InitialiseDisplayImage()
         new CPropertyAction(this, &DisplayIlluminator::OnCenterX));
     CreateIntegerProperty(g_PropName_CenterY, centerY_, false,
         new CPropertyAction(this, &DisplayIlluminator::OnCenterY));
+    CreateStringProperty(g_PropName_MonoColor, monoColor_.c_str(), false,
+        new CPropertyAction(this, &DisplayIlluminator::OnMonoColor));
 
     // Create preset images to select via device property manager
     CreateImages();
@@ -513,7 +516,24 @@ int DisplayIlluminator::OnImagePropUpdate(MM::PropertyBase* pProp, MM::ActionTyp
     return DEVICE_OK;
 }
 
-// TODO: Replace with inline functions?
+int DisplayIlluminator::OnImagePropUpdate(MM::PropertyBase* pProp, MM::ActionType eAct, std::string& prop)
+{
+    if (eAct == MM::BeforeGet)
+    {
+        pProp->Set(prop.c_str());
+    }
+    else if (eAct == MM::AfterSet)
+    {
+        pProp->Get(prop);
+
+        CreateImages();
+        SetImage(&images_[imageName_][0]);
+        DisplayImage();
+    }
+
+    return DEVICE_OK;
+}
+
 int DisplayIlluminator::OnDpcDiameter(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
     return OnImagePropUpdate(pProp, eAct, dpcDiameter_);
@@ -538,6 +558,10 @@ int DisplayIlluminator::OnCenterY(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
     return OnImagePropUpdate(pProp, eAct, centerY_);
 }
+int DisplayIlluminator::OnMonoColor(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+    return OnImagePropUpdate(pProp, eAct, monoColor_);
+}
 
 
 void DisplayIlluminator::CreateImages()
@@ -552,7 +576,7 @@ void DisplayIlluminator::CreateImages()
 
 
 std::vector<unsigned int> HalfCircleFrame(unsigned int frameHeight, unsigned int frameWidth, unsigned int diameter,
-    int rotation, std::string colourHex, int centerX = 0, int centerY = 0)
+    int rotation, std::string colorHex, int centerX = 0, int centerY = 0)
 {
     std::vector<unsigned int> frame;
     frame.reserve(frameHeight * frameWidth);
@@ -562,7 +586,7 @@ std::vector<unsigned int> HalfCircleFrame(unsigned int frameHeight, unsigned int
         {
             if (IsPointInHalfCircle(centerX, centerY, x, y, diameter, rotation))
             {
-                frame.push_back((unsigned int)strtoul(colourHex.c_str(), nullptr, 16));
+                frame.push_back((unsigned int)strtoul(colorHex.c_str(), nullptr, 16));
             }
             else
             {

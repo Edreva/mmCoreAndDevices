@@ -48,17 +48,19 @@ public:
 	}
 private:
 	void CreateImages();
-	int InitialiseDisplayImage();
-	int InitialiseMonitor();
+	int InitializeImages();
+	int InitializeMonitor();
+	void UpdateAllowedImages();
 	
 	// Action Handlers
 	// Generics
 	int OnImagePropUpdate(MM::PropertyBase* pProp, MM::ActionType eAct, unsigned& prop); 
 	int OnImagePropUpdate(MM::PropertyBase* pProp, MM::ActionType eAct, std::string& prop);
 
-	int OnDisplayImage(MM::PropertyBase* pProp, MM::ActionType eAct);
+	int OnActiveImage(MM::PropertyBase* pProp, MM::ActionType eAct);
 	int OnDpcDiameter(MM::PropertyBase* pProp, MM::ActionType eAct);
 	int OnDpcInnerDiameter(MM::PropertyBase* pProp, MM::ActionType eAct);
+	int OnDpcPatternCount(MM::PropertyBase* pProp, MM::ActionType eAct);
 	int OnDfDiameter(MM::PropertyBase* pProp, MM::ActionType eAct);
 	int OnRotation(MM::PropertyBase* pProp, MM::ActionType eAct);
 	//int OnPcDiameter(MM::PropertyBase* pProp, MM::ActionType eAct);
@@ -79,9 +81,10 @@ private:
 	SleepBlocker* sleepBlocker_;
 	RefreshWaiter refreshWaiter_;
 
-	unsigned centerX_, centerY_;
+	unsigned centerX_, centerY_; // TODO: Either rename to reflect the fact they represent the top left corner, or adjust use.
 	unsigned dpcDiameter_;
 	unsigned dpcInnerDiameter_;
+	unsigned dpcPatternCount_;
 	unsigned dfDiameter_;
 	unsigned rotation_;
 
@@ -97,6 +100,6 @@ private:
 
 };
 
-std::vector<unsigned int> HalfCircleFrame(unsigned int frameHeight, unsigned int frameWidth, unsigned int diameter, int rotation, std::string colorHex, int centerX, int centerY);
+std::vector<unsigned int> HalfCircleFrame(unsigned int frameHeight, unsigned int frameWidth, unsigned int diameter, float rotation, std::string colorHex, int centerX, int centerY);
 float DistanceFromCenter(unsigned int centerX, unsigned int centerY, unsigned int pointX, unsigned int pointY);
-bool IsPointInHalfCircle(unsigned int centerX, unsigned int centerY, unsigned int pointX, unsigned int pointY, unsigned int diameter, int rotationDeg);
+bool IsPointInHalfCircle(unsigned int centerX, unsigned int centerY, unsigned int pointX, unsigned int pointY, unsigned int diameter, float rotationDeg);

@@ -22,11 +22,12 @@ const char* g_DisplayIllumName = "DisplayIlluminator";
 const char* g_PropName_GraphicsPort = "GraphicsPort";
 const char* g_PropName_TestModeWidth = "TestModeWidth";
 const char* g_PropName_TestModeHeight = "TestModeHeight";
-const char* g_PropName_DisplayHeightPx = "DisplayHeightPixels";
-const char* g_PropName_DisplayWidthPx = "DisplayWidthPixels";
-const char* g_PropName_DisplayPxSize = "DisplayPixelSize_um";
-const char* g_PropName_DisplayImage = "DisplayImage";
+const char* g_PropName_DisplayHeightPx = "DisplayHeight_pixels";
+const char* g_PropName_DisplayWidthPx = "DisplayWidth_pixels";
+const char* g_PropName_PixelSize = "PixelSize_um";
+const char* g_PropName_ActiveImage = "ActiveImage";
 const char* g_PropName_DpcDiameter = "DpcDiameter";
+const char* g_PropName_DpcPatternCount = "DpcPatternCount";
 const char* g_PropName_DpcInnerDiameter = "DpcInnerDiameter";
 const char* g_PropName_DfDiameter = "DfDiameter";
 const char* g_PropName_Rotation = "Rotation";
@@ -88,6 +89,7 @@ DisplayIlluminator::DisplayIlluminator(const char* name) :
     rotation_(0),
     dpcDiameter_(0),
     dpcInnerDiameter_(0),
+    dpcPatternCount_(0),
     dfDiameter_(0),
     imageName_("Off")
 {
@@ -167,13 +169,13 @@ int DisplayIlluminator::Initialize()
     //AddAllowedValue(g_PropName_MonoColor, "Magenta", SLM_COLOR_MAGENTA);
     //AddAllowedValue(g_PropName_MonoColor, "Yellow", SLM_COLOR_YELLOW);
 
-    CreateFloatProperty(g_PropName_DisplayPxSize, pixelSize_, false); // User entered pixel size. Future use when real image sizes are needed.
+    CreateFloatProperty(g_PropName_PixelSize, pixelSize_, false); // User entered pixel size. Future use when real image sizes are needed.
 
-    err = InitialiseMonitor();
+    err = InitializeMonitor();
     if (err != DEVICE_OK)
         return err;
 
-    err = InitialiseDisplayImage();
+    err = InitializeImages();
     if (err != DEVICE_OK)
         return err;
 
@@ -181,7 +183,7 @@ int DisplayIlluminator::Initialize()
 }
 
 
-int DisplayIlluminator::InitialiseMonitor()
+int DisplayIlluminator::InitializeMonitor()
 {
     // Set up the monitor and window
     long graphicsPortIndex;
@@ -261,17 +263,21 @@ int DisplayIlluminator::InitialiseMonitor()
 }
 
 
-int DisplayIlluminator::InitialiseDisplayImage()
+int DisplayIlluminator::InitializeImages()
 {
-    // Set Defaults
+    // Set initial values
     centerX_ = static_cast<unsigned int>(round(width_ / 2));
     centerY_ = static_cast<unsigned int>(round(height_ / 2));
     dpcDiameter_ = static_cast<unsigned int>(round(min(height_, width_)));
+    dpcPatternCount_ = 4;
 
     CreateIntegerProperty(g_PropName_DpcDiameter, dpcDiameter_, false,
         new CPropertyAction(this, &DisplayIlluminator::OnDpcDiameter));
     CreateIntegerProperty(g_PropName_DpcInnerDiameter, dpcInnerDiameter_, false,
         new CPropertyAction(this, &DisplayIlluminator::OnDpcInnerDiameter));
+
+    CreateIntegerProperty(g_PropName_DpcPatternCount, dpcPatternCount_, false,
+        new CPropertyAction(this, &DisplayIlluminator::OnDpcPatternCount));
     CreateIntegerProperty(g_PropName_DfDiameter, dfDiameter_, false,
         new CPropertyAction(this, &DisplayIlluminator::OnDfDiameter));
     CreateIntegerProperty(g_PropName_Rotation, rotation_, false,
@@ -282,20 +288,14 @@ int DisplayIlluminator::InitialiseDisplayImage()
         new CPropertyAction(this, &DisplayIlluminator::OnCenterY));
     CreateStringProperty(g_PropName_MonoColor, monoColor_.c_str(), false,
         new CPropertyAction(this, &DisplayIlluminator::OnMonoColor));
-
-    // Create preset images to select via device property manager
-    CreateImages();
-    int err = CreateStringProperty(g_PropName_DisplayImage, imageName_.c_str(), false,
-        new CPropertyAction(this, &DisplayIlluminator::OnDisplayImage));
+    int err = CreateStringProperty(g_PropName_ActiveImage, imageName_.c_str(), false,
+        new CPropertyAction(this, &DisplayIlluminator::OnActiveImage));
     if (err != DEVICE_OK)
         return err;
 
-    AddAllowedValue(g_PropName_DisplayImage, "Off");
-    AddAllowedValue(g_PropName_DisplayImage, "On");
-    AddAllowedValue(g_PropName_DisplayImage, "DPC1");
-    AddAllowedValue(g_PropName_DisplayImage, "DPC2");
-    AddAllowedValue(g_PropName_DisplayImage, "DPC3");
-    AddAllowedValue(g_PropName_DisplayImage, "DPC4");
+    // Create preset images to select via device property manager
+    CreateImages();
+    UpdateAllowedImages();
 
     // Initialise display
     SetImage(&images_[imageName_][0]);
@@ -480,7 +480,7 @@ int DisplayIlluminator::DisplayImage()
 }
 
 
-int DisplayIlluminator::OnDisplayImage(MM::PropertyBase* pProp, MM::ActionType eAct)
+int DisplayIlluminator::OnActiveImage(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
     if (eAct == MM::BeforeGet)
     {
@@ -562,21 +562,43 @@ int DisplayIlluminator::OnMonoColor(MM::PropertyBase* pProp, MM::ActionType eAct
 {
     return OnImagePropUpdate(pProp, eAct, monoColor_);
 }
+int DisplayIlluminator::OnDpcPatternCount(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+    if (eAct == MM::AfterSet)
+    {
+        UpdateAllowedImages();
+        imageName_ = "Off";
+    }
+    return OnImagePropUpdate(pProp, eAct, dpcPatternCount_);
+}
 
+void DisplayIlluminator::UpdateAllowedImages()
+{
+    ClearAllowedValues(g_PropName_ActiveImage);
+    AddAllowedValue(g_PropName_ActiveImage, "Off");
+    AddAllowedValue(g_PropName_ActiveImage, "On");
+    for (int i = 0; i < dpcPatternCount_; i++)
+    {
+        std::string imageName = "DPC" + std::to_string(i + 1);
+        AddAllowedValue(g_PropName_ActiveImage, imageName.c_str());
+    }
 
+}
 void DisplayIlluminator::CreateImages()
 {
     images_["Off"] = std::vector<unsigned int>(height_ * width_, 0);
     images_["On"] = std::vector<unsigned int>(height_ * width_, UINT32_MAX);
-    images_["DPC1"] = HalfCircleFrame(height_, width_, dpcDiameter_, 0 + rotation_, monoColor_, centerX_, centerY_);
-    images_["DPC2"] = HalfCircleFrame(height_, width_, dpcDiameter_, 90 + rotation_, monoColor_, centerX_, centerY_);
-    images_["DPC3"] = HalfCircleFrame(height_, width_, dpcDiameter_, 180 + rotation_, monoColor_, centerX_, centerY_);
-    images_["DPC4"] = HalfCircleFrame(height_, width_, dpcDiameter_, 270 + rotation_, monoColor_, centerX_, centerY_);
+    
+    for (int i = 0; i < dpcPatternCount_; i++)
+    {
+        std::string imageName = "DPC" + std::to_string(i + 1);
+        images_[imageName] = HalfCircleFrame(height_, width_, dpcDiameter_, i * 360.0 / dpcPatternCount_ + rotation_, monoColor_, centerX_, centerY_);
+    }
 }
 
 
 std::vector<unsigned int> HalfCircleFrame(unsigned int frameHeight, unsigned int frameWidth, unsigned int diameter,
-    int rotation, std::string colorHex, int centerX = 0, int centerY = 0)
+    float rotation, std::string colorHex, int centerX = 0, int centerY = 0)
 {
     std::vector<unsigned int> frame;
     frame.reserve(frameHeight * frameWidth);
@@ -605,7 +627,7 @@ float DistanceFromCenter(unsigned int centerX, unsigned int centerY, unsigned in
 
 
 bool IsPointInHalfCircle(unsigned int centerX, unsigned int centerY,
-    unsigned int pointX, unsigned int pointY, unsigned int diameter, int rotationDeg)
+    unsigned int pointX, unsigned int pointY, unsigned int diameter, float rotationDeg)
 {
     int translatedX = pointX - centerX;
     int translatedY = pointY - centerY;

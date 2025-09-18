@@ -9,6 +9,9 @@
 
 #include "RefreshWaiter.h"
 
+#include "SourcePatternRenderer.h"
+#include <set>
+
 class SLMWindowThread;
 class SleepBlocker;
 
@@ -36,6 +39,8 @@ public:
 	virtual int SetExposure(double exposureMs);
 	virtual double GetExposure();
 
+	enum ImageTypes { BF, DF, DPC, PC, RB };
+
 	virtual int SetImage(unsigned char* pixels);
 	virtual int SetImage(unsigned int* pixels);
 	virtual int SetPixelsTo(unsigned char intensity);
@@ -48,6 +53,18 @@ public:
 	}
 private:
 	void CreateImages();
+	void CreateDpcImages();
+	void CreatePcImage();
+	void CreateDfImage();
+	void CreateBfImage();
+	void CreateRbImage();
+	void UpdateRbImage();
+	void UpdateImages();
+	void UpdateDpcImages();
+	void UpdatePcImage();
+	void UpdateDfImage();
+	void UpdateBfImage();
+	void UpdateImages(std::set<ImageTypes> imagesToUpdate);
 	int InitializeImages();
 	int InitializeMonitor();
 	void UpdateAllowedImages();
@@ -55,19 +72,34 @@ private:
 	// Action Handlers
 	// Generics
 	int OnImagePropUpdate(MM::PropertyBase* pProp, MM::ActionType eAct, unsigned& prop); 
+	int OnImagePropUpdate(MM::PropertyBase* pProp, MM::ActionType eAct, unsigned& prop, std::set<ImageTypes>);
 	int OnImagePropUpdate(MM::PropertyBase* pProp, MM::ActionType eAct, std::string& prop);
+	int OnImagePropUpdate(MM::PropertyBase* pProp, MM::ActionType eAct, std::string& prop, std::set<ImageTypes>);
 
 	int OnActiveImage(MM::PropertyBase* pProp, MM::ActionType eAct);
-	int OnDpcDiameter(MM::PropertyBase* pProp, MM::ActionType eAct);
-	int OnDpcInnerDiameter(MM::PropertyBase* pProp, MM::ActionType eAct);
 	int OnDpcPatternCount(MM::PropertyBase* pProp, MM::ActionType eAct);
-	int OnDfDiameter(MM::PropertyBase* pProp, MM::ActionType eAct);
+	int OnDpcWidth(MM::PropertyBase* pProp, MM::ActionType eAct);
+	int OnDpcHeight(MM::PropertyBase* pProp, MM::ActionType eAct);
+	int OnDpcInnerWidth(MM::PropertyBase* pProp, MM::ActionType eAct);
+	int OnDpcInnerHeight(MM::PropertyBase* pProp, MM::ActionType eAct);
+	int OnPcWidth(MM::PropertyBase* pProp, MM::ActionType eAct);
+	int OnPcHeight(MM::PropertyBase* pProp, MM::ActionType eAct);
+	int OnPcInnerWidth(MM::PropertyBase* pProp, MM::ActionType eAct);
+	int OnPcInnerHeight(MM::PropertyBase* pProp, MM::ActionType eAct);
+	int OnDfWidth(MM::PropertyBase* pProp, MM::ActionType eAct);
+	int OnDfHeight(MM::PropertyBase* pProp, MM::ActionType eAct);
+	int OnDfInnerWidth(MM::PropertyBase* pProp, MM::ActionType eAct);
+	int OnDfInnerHeight(MM::PropertyBase* pProp, MM::ActionType eAct);
+	int OnBfWidth(MM::PropertyBase* pProp, MM::ActionType eAct);
+	int OnBfHeight(MM::PropertyBase* pProp, MM::ActionType eAct);
 	int OnRotation(MM::PropertyBase* pProp, MM::ActionType eAct);
-	//int OnPcDiameter(MM::PropertyBase* pProp, MM::ActionType eAct);
-	//int OnPcInnerDiameter(MM::PropertyBase* pProp, MM::ActionType eAct);
 	int OnCenterX(MM::PropertyBase* pProp, MM::ActionType eAct);
 	int OnCenterY(MM::PropertyBase* pProp, MM::ActionType eAct);
 	int OnMonoColor(MM::PropertyBase* pProp, MM::ActionType eAct);
+	int OnRbOuterColor(MM::PropertyBase* pProp, MM::ActionType eAct);
+
+	int SetImage(cv::Mat image);
+	int SetImage(SourcePatternRenderer imageRenderer);
 
 private:
 	const std::string name_;
@@ -82,16 +114,21 @@ private:
 	RefreshWaiter refreshWaiter_;
 
 	unsigned centerX_, centerY_; // TODO: Either rename to reflect the fact they represent the top left corner, or adjust use.
-	unsigned dpcDiameter_;
-	unsigned dpcInnerDiameter_;
+	unsigned dpcWidth_, dpcHeight_;
+	unsigned dpcInnerWidth_, dpcInnerHeight_;
+	unsigned pcWidth_, pcHeight_;
+	unsigned pcInnerWidth_, pcInnerHeight_;
+	unsigned dfWidth_, dfHeight_;
+	unsigned dfInnerWidth_, dfInnerHeight_;
+	unsigned bfWidth_, bfHeight_;
 	unsigned dpcPatternCount_;
-	unsigned dfDiameter_;
 	unsigned rotation_;
 
 	std::string monoColor_;
-
+	std::string rbOuterColor_;
 	std::string imageName_; // Name of currently selected image
-	std::map< std::string, std::vector<unsigned int>> images_; // Maps image names to pixel vectors
+	//std::map< std::string, std::vector<unsigned int>> images_; // Maps image names to pixel vectors
+	std::map< std::string, SourcePatternRenderer> images_;
 	// Currently unused - TODO
 	double exposureMs_;
 	bool invert_;
@@ -99,7 +136,3 @@ private:
 	float pixelSize_;
 
 };
-
-std::vector<unsigned int> HalfCircleFrame(unsigned int frameHeight, unsigned int frameWidth, unsigned int diameter, float rotation, std::string colorHex, int centerX, int centerY);
-float DistanceFromCenter(unsigned int centerX, unsigned int centerY, unsigned int pointX, unsigned int pointY);
-bool IsPointInHalfCircle(unsigned int centerX, unsigned int centerY, unsigned int pointX, unsigned int pointY, unsigned int diameter, float rotationDeg);

@@ -19,6 +19,7 @@
     <ClInclude Include="SLMWindow.h" />
     <ClInclude Include="SLMWindowClass.h" />
     <ClInclude Include="SLMWindowThread.h" />
+    <ClInclude Include="SourcePatternRenderer.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DisplayIlluminator.cpp" />
@@ -29,6 +30,7 @@
     <ClCompile Include="SLMWindow.cpp" />
     <ClCompile Include="SLMWindowClass.cpp" />
     <ClCompile Include="SLMWindowThread.cpp" />
+    <ClCompile Include="SourcePatternRenderer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\MMDevice\MMDevice-SharedRuntime.vcxproj">
@@ -71,16 +73,20 @@
     <Import Project="..\..\buildscripts\VisualStudio\MMDeviceAdapter.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Label="Vcpkg" />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;DISPLAYILLUMINATOR_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(MM_3RDPARTYPUBLIC)\OpenCV2.4.13.6\VS2019\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
+      <AdditionalLibraryDirectories>$(MM_3RDPARTYPUBLIC)\OpenCV2.4.13.6\VS2019\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>$(MM_3RDPARTYPUBLIC)\OpenCV2.4.13.6\VS2019\lib\opencv_core2413d.lib;$(MM_3RDPARTYPUBLIC)\OpenCV2.4.13.6\VS2019\lib\opencv_imgproc2413d.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -90,6 +96,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;DISPLAYILLUMINATOR_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(MM_MMDEVICE_$(MM_3RDPARTYPUBLIC)\OpenCV2.4.13.6\VS2019\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -97,6 +104,8 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
+      <AdditionalLibraryDirectories>$(MM_3RDPARTYPUBLIC)\OpenCV2.4.13.6\VS2019\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>$(MM_3RDPARTYPUBLIC)\OpenCV2.4.13.6\VS2019\lib\opencv_core2413.lib;$(MM_3RDPARTYPUBLIC)\OpenCV2.4.13.6\VS2019\lib\opencv_imgproc2413.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

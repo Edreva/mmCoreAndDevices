@@ -18,36 +18,7 @@
 
 #include <algorithm>
 
-const char* g_DisplayIllumName = "DisplayIlluminator";
-const char* g_PropName_GraphicsPort = "GraphicsPort";
-const char* g_PropName_TestModeWidth = "TestModeWidth";
-const char* g_PropName_TestModeHeight = "TestModeHeight";
-const char* g_PropName_DisplayHeightPx = "DisplayHeight_pixels";
-const char* g_PropName_DisplayWidthPx = "DisplayWidth_pixels";
-const char* g_PropName_PixelSize = "PixelSize_um";
-const char* g_PropName_ActiveImage = "ActiveImage";
-const char* g_PropName_DpcPatternCount = "DpcPatternCount";
-const char* g_PropName_DpcWidth = "DpcWidth";
-const char* g_PropName_DpcHeight = "DpcHeight";
-const char* g_PropName_DpcInnerWidth = "DpcInnerWidth";
-const char* g_PropName_DpcInnerHeight = "DpcInnerHeight";
-const char* g_PropName_PcWidth = "PcWidth";
-const char* g_PropName_PcHeight = "PcHeight";
-const char* g_PropName_PcInnerWidth = "PcInnerWidth";
-const char* g_PropName_PcInnerHeight = "PcInnerHeight";
-const char* g_PropName_DfWidth = "DfWidth";
-const char* g_PropName_DfHeight = "DfHeight";
-const char* g_PropName_DfInnerWidth = "DfInnerWidth";
-const char* g_PropName_DfInnerHeight = "DfInnerHeight";
-const char* g_PropName_BfWidth = "BfWidth";
-const char* g_PropName_BfHeight = "BfHeight";
-const char* g_PropName_Rotation = "Rotation";
-const char* g_PropName_CenterX = "CenterX";
-const char* g_PropName_CenterY = "CenterY";
-const char* g_PropName_MonoColor = "MonoColor";
-const char* g_PropName_RbOuterColor = "RheinbergOuterColor";
-
-
+// Map prop name to member var ptr and array of imagetypes enum to update when changed
 enum {
 	ERR_INVALID_TESTMODE_SIZE = 20000,
 	ERR_CANNOT_DETACH,
@@ -84,38 +55,19 @@ MODULE_API void DeleteDevice(MM::Device* pDevice)
 	delete pDevice;
 }
 
-DisplayIlluminator::DisplayIlluminator(const char* name) : 
-	name_(name),
-	width_(0),
-	height_(0),
+DisplayIlluminator::DisplayIlluminator(const char* name) :
+    name_(name),
+    width_(0),
+    height_(0),
     invert_(false),
     shouldBlitInverted_(false),
     sleepBlocker_(0),
     windowThread_(0),
-    monoColor_("00FF00"),
     pixelSize_(0.0),
-    exposureMs_(0.0),
-    centerX_(0),
-    centerY_(0),
-    rotation_(0),
-    dpcPatternCount_(0),
-    dpcHeight_(0),
-    dpcWidth_(0),
-    dpcInnerWidth_(0),
-    dpcInnerHeight_(0),
-    pcHeight_(0),
-    pcWidth_(0),
-    pcInnerHeight_(0),
-    pcInnerWidth_(0),
-    dfHeight_(0),
-    dfWidth_(0),
-    dfInnerHeight_(0),
-    dfInnerWidth_(0),
-    bfHeight_(0),
-    bfWidth_(0),
-    rbOuterColor_("FF0000"),
-    imageName_("Off")
+    exposureMs_(0.0)
+
 {
+
    InitializeDefaultErrorMessages();
    SetErrorText(ERR_INVALID_TESTMODE_SIZE,
 		 "Invalid test mode window size");
@@ -139,7 +91,6 @@ DisplayIlluminator::DisplayIlluminator(const char* name) :
 	   AddAllowedValue(g_PropName_GraphicsPort,
 		   availableMonitors_[i].c_str(), i + 1);
    }
-
    CreateIntegerProperty(g_PropName_TestModeWidth, 128, false, 0, true);
    CreateIntegerProperty(g_PropName_TestModeHeight, 128, false, 0, true);
 }
@@ -172,29 +123,9 @@ int DisplayIlluminator::Initialize()
     if (err != DEVICE_OK)
         return err;
 
-    // TODO: Implement or delete if unnecessary 
-    //err = CreateStringProperty(g_PropName_Inversion, inversionStr_.c_str(), false,
-    //    new CPropertyAction(this, &DisplayIlluminator::OnInversion));
-    //if (err != DEVICE_OK)
-    //    return err;
-    //AddAllowedValue(g_PropName_Inversion, "Off", 0);
-    //AddAllowedValue(g_PropName_Inversion, "On", 1);
-
-    //err = CreateStringProperty(g_PropName_MonoColor, monoColorStr_.c_str(), false,
-    //    new CPropertyAction(this, &DisplayIlluminator::OnMonochromeColor));
-    //if (err != DEVICE_OK)
-    //    return err;
-    //AddAllowedValue(g_PropName_MonoColor, "White", SLM_COLOR_WHITE);
-    //AddAllowedValue(g_PropName_MonoColor, "Red", SLM_COLOR_RED);
-    //AddAllowedValue(g_PropName_MonoColor, "Green", SLM_COLOR_GREEN);
-    //AddAllowedValue(g_PropName_MonoColor, "Blue", SLM_COLOR_BLUE);
-    //AddAllowedValue(g_PropName_MonoColor, "Cyan", SLM_COLOR_CYAN);
-    //AddAllowedValue(g_PropName_MonoColor, "Magenta", SLM_COLOR_MAGENTA);
-    //AddAllowedValue(g_PropName_MonoColor, "Yellow", SLM_COLOR_YELLOW);
-
     CreateFloatProperty(g_PropName_PixelSize, pixelSize_, false); // User entered pixel size. Future use when real image sizes are needed.
 
-    err = InitializeMonitor();
+    err = InitializeDisplay();
     if (err != DEVICE_OK)
         return err;
 
@@ -206,7 +137,7 @@ int DisplayIlluminator::Initialize()
 }
 
 
-int DisplayIlluminator::InitializeMonitor()
+int DisplayIlluminator::InitializeDisplay()
 {
     // Set up the monitor and window
     long graphicsPortIndex;
@@ -285,86 +216,83 @@ int DisplayIlluminator::InitializeMonitor()
     return DEVICE_OK;
 }
 
-
 int DisplayIlluminator::InitializeImages()
 {
-    // Set initial values
+    // Set startup values
     unsigned int initialAnnulusThickness = 20;
+    centerX = static_cast<unsigned int>(round(width_ / 2));
+    centerY = static_cast<unsigned int>(round(height_ / 2));
+    dpcWidth = static_cast<unsigned int>(round(std::min(height_, width_)));
+    dpcHeight = dpcWidth;
+    bfWidth = dpcWidth - initialAnnulusThickness;
+    bfHeight = bfWidth;
+    dfWidth = dpcWidth;
+    dfHeight = dfWidth;
+    pcWidth = 0.75 * dpcWidth; // Arbitrary TODO: update
+    pcHeight = 0.75 * dpcHeight;
+    pcInnerWidth = pcWidth - initialAnnulusThickness;
+    pcInnerHeight = pcHeight - initialAnnulusThickness;
+    dfInnerWidth = dfWidth - initialAnnulusThickness;
+    dfInnerHeight = dfHeight - initialAnnulusThickness;
+    dpcPatternCount = 4;
+    activeImage = "Off";
+    monoColor = "00FF00";
+    rbOuterColor = "FF0000";
+    rbInnerColor = "0000FF";
 
-    centerX_ = static_cast<unsigned int>(round(width_ / 2));
-    centerY_ = static_cast<unsigned int>(round(height_ / 2));
-    dpcWidth_ = static_cast<unsigned int>(round(std::min(height_, width_)));
-    dpcHeight_ = dpcWidth_;
-    bfWidth_ = dpcWidth_ - initialAnnulusThickness;
-    bfHeight_ = bfWidth_;
-    dfWidth_ = dpcWidth_;
-    dfHeight_ = dfWidth_;
-    pcWidth_ = 0.75 * dpcWidth_; // Arbitrary TODO: update
-    pcHeight_ = 0.75 * dpcHeight_;
-    pcInnerWidth_ = pcWidth_ - initialAnnulusThickness;
-    pcInnerHeight_ = pcHeight_ - initialAnnulusThickness;
-    dfInnerWidth_ = dfWidth_ - initialAnnulusThickness;
-    dfInnerHeight_ = dfHeight_ - initialAnnulusThickness;
-    dpcPatternCount_ = 4;
-
-
-
-    CreateIntegerProperty(g_PropName_DpcPatternCount, dpcPatternCount_, false,
-        new CPropertyAction(this, &DisplayIlluminator::OnDpcPatternCount));
-    CreateIntegerProperty(g_PropName_DpcWidth, dpcWidth_, false,
-        new CPropertyAction(this, &DisplayIlluminator::OnDpcWidth));
-    CreateIntegerProperty(g_PropName_DpcHeight, dpcHeight_, false,
-        new CPropertyAction(this, &DisplayIlluminator::OnDpcHeight));
-    CreateIntegerProperty(g_PropName_DpcInnerWidth, dpcInnerWidth_, false,
-        new CPropertyAction(this, &DisplayIlluminator::OnDpcInnerWidth));
-    CreateIntegerProperty(g_PropName_DpcInnerHeight, dpcInnerHeight_, false,
-        new CPropertyAction(this, &DisplayIlluminator::OnDpcInnerHeight));
-    CreateIntegerProperty(g_PropName_PcWidth, pcWidth_, false,
-        new CPropertyAction(this, &DisplayIlluminator::OnPcWidth));
-    CreateIntegerProperty(g_PropName_PcHeight, pcHeight_, false,
-        new CPropertyAction(this, &DisplayIlluminator::OnPcHeight));
-    CreateIntegerProperty(g_PropName_PcInnerWidth, pcInnerWidth_, false,
-        new CPropertyAction(this, &DisplayIlluminator::OnPcInnerWidth));
-    CreateIntegerProperty(g_PropName_PcInnerHeight, pcInnerHeight_, false,
-        new CPropertyAction(this, &DisplayIlluminator::OnPcInnerHeight));
-    CreateIntegerProperty(g_PropName_DfWidth, dfWidth_, false,
-        new CPropertyAction(this, &DisplayIlluminator::OnDfWidth));
-    CreateIntegerProperty(g_PropName_DfHeight, dfHeight_, false,
-        new CPropertyAction(this, &DisplayIlluminator::OnDfHeight));
-    CreateIntegerProperty(g_PropName_DfInnerWidth, dfInnerWidth_, false,
-        new CPropertyAction(this, &DisplayIlluminator::OnDfInnerWidth));
-    CreateIntegerProperty(g_PropName_DfInnerHeight, dfInnerHeight_, false,
-        new CPropertyAction(this, &DisplayIlluminator::OnDfInnerHeight));
-    CreateIntegerProperty(g_PropName_BfWidth, bfWidth_, false,
-        new CPropertyAction(this, &DisplayIlluminator::OnBfWidth));
-    CreateIntegerProperty(g_PropName_BfHeight, bfHeight_, false,
-        new CPropertyAction(this, &DisplayIlluminator::OnBfHeight));
-    CreateIntegerProperty(g_PropName_Rotation, rotation_, false,
-        new CPropertyAction(this, &DisplayIlluminator::OnRotation));
-    CreateIntegerProperty(g_PropName_CenterX, centerX_, false,
-        new CPropertyAction(this, &DisplayIlluminator::OnCenterX));
-    CreateIntegerProperty(g_PropName_CenterY, centerY_, false,
-        new CPropertyAction(this, &DisplayIlluminator::OnCenterY));
-    CreateStringProperty(g_PropName_MonoColor, monoColor_.c_str(), false,
-        new CPropertyAction(this, &DisplayIlluminator::OnMonoColor));
-    CreateStringProperty(g_PropName_RbOuterColor, rbOuterColor_.c_str(), false,
-        new CPropertyAction(this, &DisplayIlluminator::OnRbOuterColor));
-
-    int err = CreateStringProperty(g_PropName_ActiveImage, imageName_.c_str(), false,
-        new CPropertyAction(this, &DisplayIlluminator::OnActiveImage));
-    if (err != DEVICE_OK)
-        return err;
+    CreateProperty(g_PropName_ActiveImage, false, new CPropertyAction(this, &DisplayIlluminator::OnImagePropUpdate));
+    CreateProperty(g_PropName_BfHeight, false, new CPropertyAction(this, &DisplayIlluminator::OnImagePropUpdate));
+    CreateProperty(g_PropName_BfWidth, false, new CPropertyAction(this, &DisplayIlluminator::OnImagePropUpdate));
+    CreateProperty(g_PropName_DfHeight, false, new CPropertyAction(this, &DisplayIlluminator::OnImagePropUpdate));
+    CreateProperty(g_PropName_DfWidth, false, new CPropertyAction(this, &DisplayIlluminator::OnImagePropUpdate));
+    CreateProperty(g_PropName_DfInnerHeight, false, new CPropertyAction(this, &DisplayIlluminator::OnImagePropUpdate));
+    CreateProperty(g_PropName_DfInnerWidth, false, new CPropertyAction(this, &DisplayIlluminator::OnImagePropUpdate));
+    CreateProperty(g_PropName_PcHeight, false, new CPropertyAction(this, &DisplayIlluminator::OnImagePropUpdate));
+    CreateProperty(g_PropName_PcWidth, false, new CPropertyAction(this, &DisplayIlluminator::OnImagePropUpdate));
+    CreateProperty(g_PropName_PcInnerHeight, false, new CPropertyAction(this, &DisplayIlluminator::OnImagePropUpdate));
+    CreateProperty(g_PropName_PcInnerWidth, false, new CPropertyAction(this, &DisplayIlluminator::OnImagePropUpdate));
+    CreateProperty(g_PropName_DpcHeight, false, new CPropertyAction(this, &DisplayIlluminator::OnImagePropUpdate));
+    CreateProperty(g_PropName_DpcWidth, false, new CPropertyAction(this, &DisplayIlluminator::OnImagePropUpdate));
+    CreateProperty(g_PropName_DpcInnerHeight, false, new CPropertyAction(this, &DisplayIlluminator::OnImagePropUpdate));
+    CreateProperty(g_PropName_DpcInnerWidth, false, new CPropertyAction(this, &DisplayIlluminator::OnImagePropUpdate));
+    CreateProperty(g_PropName_DpcPatternCount, false, new CPropertyAction(this, &DisplayIlluminator::OnDpcPatternCount));
+    CreateProperty(g_PropName_CenterX, false, new CPropertyAction(this, &DisplayIlluminator::OnImagePropUpdate));
+    CreateProperty(g_PropName_CenterY, false, new CPropertyAction(this, &DisplayIlluminator::OnImagePropUpdate));
+    CreateProperty(g_PropName_Rotation, false, new CPropertyAction(this, &DisplayIlluminator::OnImagePropUpdate));
+    CreateProperty(g_PropName_MonoColor, false, new CPropertyAction(this, &DisplayIlluminator::OnImagePropUpdate));
+    CreateProperty(g_PropName_RbOuterColor, false, new CPropertyAction(this, &DisplayIlluminator::OnImagePropUpdate));
+    CreateProperty(g_PropName_RbInnerColor, false, new CPropertyAction(this, &DisplayIlluminator::OnImagePropUpdate));
 
     // Create preset images to select via device property manager
     CreateImages();
     UpdateAllowedImages();
 
     // Initialise display
-    SetImage(images_[imageName_]);
+    BlitActiveImageToBuffer();
     DisplayImage();
 
     return DEVICE_OK;
 }
+
+// Generic version that uses the variant associated with propName in imagePropertyModeMap to dispatch to the correct CreateProperty overload
+void DisplayIlluminator::CreateProperty(const char* propName, bool readOnly, MM::ActionFunctor* pAct, bool isPreInitProperty)
+{
+    boost::apply_visitor([this, propName, readOnly, pAct, isPreInitProperty](auto&& value)
+        {
+            this->CreateProperty(propName, *value, readOnly, pAct, isPreInitProperty);
+        }, imagePropertyModeMap.at(propName).propertyValuePtr);
+};
+
+void DisplayIlluminator::CreateProperty(const char* propName, std::string initialValue, bool readOnly, MM::ActionFunctor* pAct, bool isPreInitProperty)
+{
+    CreateStringProperty(propName, initialValue.c_str(), readOnly, pAct, isPreInitProperty);
+};
+
+void DisplayIlluminator::CreateProperty(const char* propName, unsigned initialValue, bool readOnly, MM::ActionFunctor* pAct, bool isPreInitProperty)
+{
+    CreateIntegerProperty(propName, initialValue, readOnly, pAct, isPreInitProperty);
+};
+
 
 // Copied from GenericSLM
 int DisplayIlluminator::Shutdown()
@@ -448,7 +376,7 @@ int DisplayIlluminator::SetImage(unsigned char* pixels)
     if (!offscreen)
         return ERR_OFFSCREEN_BUFFER_UNAVAILABLE;
 
-    offscreen->DrawImage(pixels, monoColor_, invert_);
+    offscreen->DrawImage(pixels, monoColor, invert_);
     return DEVICE_OK;
 }
 
@@ -492,9 +420,10 @@ int DisplayIlluminator::SetPixelsTo(unsigned char intensity)
 
     intensity ^= (invert_ ? 0xff : 0x00);
 
-    unsigned char redChannel = (unsigned char)strtoul(monoColor_.substr(0, 2).c_str(), nullptr, 16);
-    unsigned char greenChannel = (unsigned char)strtoul(monoColor_.substr(2, 2).c_str(), nullptr, 16);
-    unsigned char blueChannel = (unsigned char)strtoul(monoColor_.substr(4, 2).c_str(), nullptr, 16);
+	// Convert hex string to RGB
+    unsigned char redChannel = (unsigned char)strtoul(monoColor.substr(0, 2).c_str(), nullptr, 16);
+    unsigned char greenChannel = (unsigned char)strtoul(monoColor.substr(2, 2).c_str(), nullptr, 16);
+    unsigned char blueChannel = (unsigned char)strtoul(monoColor.substr(4, 2).c_str(), nullptr, 16);
 
     COLORREF color(RGB(
         (intensity * redChannel) >> 8, // Accept tiny imprecision for speed
@@ -541,190 +470,112 @@ int DisplayIlluminator::DisplayImage()
     return (int)result;
 }
 
+void DisplayIlluminator::SetImageProperty(MM::PropertyBase* pProp)
+{
+    boost::apply_visitor([this, pProp](auto&& value)
+        {
+           SetImageProperty(pProp, value);
+        }, imagePropertyModeMap.at(pProp->GetName()).propertyValuePtr);
+
+}
+
+void DisplayIlluminator::SetImageProperty(MM::PropertyBase* pProp, unsigned* propertyValuePtr)
+{
+   pProp->Set(static_cast<long>(*propertyValuePtr));
+}
+
+void DisplayIlluminator::SetImageProperty(MM::PropertyBase* pProp, std::string* propertyValuePtr)
+{
+    pProp->Set(propertyValuePtr->c_str());
+}
+
+void DisplayIlluminator::GetImageProperty(MM::PropertyBase* pProp)
+{
+    boost::apply_visitor([this, pProp](auto&& value)
+        {
+            GetImageProperty(pProp, value);
+        }, imagePropertyModeMap.at(pProp->GetName()).propertyValuePtr);
+}
+
+void DisplayIlluminator::GetImageProperty(MM::PropertyBase* pProp, unsigned* propertyValuePtr)
+{
+    long temp;
+    pProp->Get(temp);
+	*propertyValuePtr = static_cast<unsigned>(temp); // Could use a numeric cast here to be safer
+	GetCoreCallback()->OnPropertyChanged(this, pProp->GetName().c_str(), std::to_string(*propertyValuePtr).c_str());
+}
+
+void DisplayIlluminator::GetImageProperty(MM::PropertyBase* pProp, std::string* propertyValuePtr)
+{
+	pProp->Get(*propertyValuePtr);
+    GetCoreCallback()->OnPropertyChanged(this, pProp->GetName().c_str(), propertyValuePtr->c_str());
+}
+
+int DisplayIlluminator::OnImagePropUpdate(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+    if (imagePropertyModeMap.count(pProp->GetName()) <= 0)
+    {
+        return DEVICE_INVALID_PROPERTY;
+    }
+
+    if (eAct == MM::BeforeGet)
+    {
+		SetImageProperty(pProp);
+    }
+    else if (eAct == MM::AfterSet)
+    {
+        GetImageProperty(pProp);
+        UpdateImages(imagePropertyModeMap.at(pProp->GetName()).relatedImageModes);
+        BlitActiveImageToBuffer();
+		DisplayImage();
+    }
+    return DEVICE_OK;
+}
 
 int DisplayIlluminator::OnActiveImage(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
     if (eAct == MM::BeforeGet)
     {
-        pProp->Set(imageName_.c_str());
+        pProp->Set(activeImage.c_str());
     }
     else if (eAct == MM::AfterSet)
     {
-        pProp->Get(imageName_);
-        SetImage(images_[imageName_]);
+        pProp->Get(activeImage);
+        BlitActiveImageToBuffer();
         DisplayImage();
+
+        // Fire the property changed event through the Core
+        GetCoreCallback()->OnPropertyChanged(this, pProp->GetName().c_str(), activeImage.c_str());
     }
 
     return DEVICE_OK;
 }
 
-int DisplayIlluminator::OnImagePropUpdate(MM::PropertyBase* pProp, MM::ActionType eAct, unsigned& prop)
-{
-    if (eAct == MM::BeforeGet)
-    {
-        pProp->Set((long)prop);
-    }
-    else if (eAct == MM::AfterSet)
-    {
-        long tempLong;
-        pProp->Get(tempLong);
-        prop = (unsigned) tempLong;
-
-        UpdateImages();
-        SetImage(images_[imageName_]);
-        DisplayImage();
-    }
-
-    return DEVICE_OK;
-}
-
-int DisplayIlluminator::OnImagePropUpdate(MM::PropertyBase* pProp, MM::ActionType eAct, unsigned& prop, std::set<ImageTypes> imagesToUpdate)
-{
-    if (eAct == MM::BeforeGet)
-    {
-        pProp->Set((long)prop);
-    }
-    else if (eAct == MM::AfterSet)
-    {
-        long tempLong;
-        pProp->Get(tempLong);
-        prop = (unsigned)tempLong;
-
-        UpdateImages(imagesToUpdate);
-        SetImage(images_[imageName_]);
-        DisplayImage();
-    }
-
-    return DEVICE_OK;
-}
-
-int DisplayIlluminator::OnImagePropUpdate(MM::PropertyBase* pProp, MM::ActionType eAct, std::string& prop)
-{
-    if (eAct == MM::BeforeGet)
-    {
-        pProp->Set(prop.c_str());
-    }
-    else if (eAct == MM::AfterSet)
-    {
-        pProp->Get(prop);
-
-        UpdateImages();
-        SetImage(images_[imageName_]);
-        DisplayImage();
-    }
-
-    return DEVICE_OK;
-}
-
-int DisplayIlluminator::OnImagePropUpdate(MM::PropertyBase* pProp, MM::ActionType eAct, std::string& prop, std::set<ImageTypes> imagesToUpdate)
-{
-    if (eAct == MM::BeforeGet)
-    {
-        pProp->Set(prop.c_str());
-    }
-    else if (eAct == MM::AfterSet)
-    {
-        pProp->Get(prop);
-
-        UpdateImages(imagesToUpdate);
-        SetImage(images_[imageName_]);
-        DisplayImage();
-    }
-
-    return DEVICE_OK;
-}
-
-int DisplayIlluminator::OnDpcWidth(MM::PropertyBase* pProp, MM::ActionType eAct)
-{
-    return OnImagePropUpdate(pProp, eAct, dpcWidth_, { DPC });
-}
-int DisplayIlluminator::OnDpcHeight(MM::PropertyBase* pProp, MM::ActionType eAct)
-{
-    return OnImagePropUpdate(pProp, eAct, dpcHeight_, { DPC });
-}
-int DisplayIlluminator::OnDpcInnerWidth(MM::PropertyBase* pProp, MM::ActionType eAct)
-{
-    return OnImagePropUpdate(pProp, eAct, dpcInnerWidth_, { DPC });
-}
-int DisplayIlluminator::OnDpcInnerHeight(MM::PropertyBase* pProp, MM::ActionType eAct)
-{
-    return OnImagePropUpdate(pProp, eAct, dpcInnerHeight_, { DPC });
-}
-int DisplayIlluminator::OnPcWidth(MM::PropertyBase* pProp, MM::ActionType eAct)
-{
-    return OnImagePropUpdate(pProp, eAct, pcWidth_, { PC });
-}
-int DisplayIlluminator::OnPcHeight(MM::PropertyBase* pProp, MM::ActionType eAct)
-{
-    return OnImagePropUpdate(pProp, eAct, pcHeight_, { PC });
-}
-int DisplayIlluminator::OnPcInnerWidth(MM::PropertyBase* pProp, MM::ActionType eAct)
-{
-    return OnImagePropUpdate(pProp, eAct, pcInnerWidth_, { PC });
-}
-int DisplayIlluminator::OnPcInnerHeight(MM::PropertyBase* pProp, MM::ActionType eAct)
-{
-    return OnImagePropUpdate(pProp, eAct, pcInnerHeight_, { PC });
-}
-int DisplayIlluminator::OnDfWidth(MM::PropertyBase* pProp, MM::ActionType eAct)
-{
-    return OnImagePropUpdate(pProp, eAct, dfWidth_, { DF, RB });
-}
-int DisplayIlluminator::OnDfHeight(MM::PropertyBase* pProp, MM::ActionType eAct)
-{
-    return OnImagePropUpdate(pProp, eAct, dfHeight_, { DF, RB });
-}
-int DisplayIlluminator::OnDfInnerWidth(MM::PropertyBase* pProp, MM::ActionType eAct)
-{
-    return OnImagePropUpdate(pProp, eAct, dfInnerWidth_, { DF, RB });
-}
-int DisplayIlluminator::OnDfInnerHeight(MM::PropertyBase* pProp, MM::ActionType eAct)
-{
-    return OnImagePropUpdate(pProp, eAct, dfInnerHeight_, { DF, RB });
-}
-int DisplayIlluminator::OnBfWidth(MM::PropertyBase* pProp, MM::ActionType eAct)
-{
-    return OnImagePropUpdate(pProp, eAct, bfWidth_, { BF, RB });
-}
-int DisplayIlluminator::OnBfHeight(MM::PropertyBase* pProp, MM::ActionType eAct)
-{
-    return OnImagePropUpdate(pProp, eAct, bfHeight_, { BF, RB });
-}
-int DisplayIlluminator::OnRotation(MM::PropertyBase* pProp, MM::ActionType eAct)
-{
-    return OnImagePropUpdate(pProp, eAct, rotation_);
-}
-int DisplayIlluminator::OnCenterX(MM::PropertyBase* pProp, MM::ActionType eAct)
-{
-    return OnImagePropUpdate(pProp, eAct, centerX_);
-}
-int DisplayIlluminator::OnCenterY(MM::PropertyBase* pProp, MM::ActionType eAct)
-{
-    return OnImagePropUpdate(pProp, eAct, centerY_);
-}
-int DisplayIlluminator::OnMonoColor(MM::PropertyBase* pProp, MM::ActionType eAct)
-{
-    return OnImagePropUpdate(pProp, eAct, monoColor_);
-}
-int DisplayIlluminator::OnRbOuterColor(MM::PropertyBase* pProp, MM::ActionType eAct)
-{
-    return OnImagePropUpdate(pProp, eAct, rbOuterColor_, { RB });
-}
 int DisplayIlluminator::OnDpcPatternCount(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
+    if (eAct == MM::BeforeGet)
+    {
+		pProp->Set(static_cast<long>(dpcPatternCount));
+    }
     if (eAct == MM::AfterSet)
     {
+        long temp;
+		pProp->Get(temp);
+		dpcPatternCount = static_cast<unsigned>(temp);
+        CreateDpcImages();
         UpdateAllowedImages();
-        imageName_ = "Off";
+        activeImage = "Off";
+        BlitActiveImageToBuffer();
+        DisplayImage();
     }
-    return OnImagePropUpdate(pProp, eAct, dpcPatternCount_, { DPC });
+    return DEVICE_OK;
 }
 
 void DisplayIlluminator::UpdateAllowedImages()
 {
     ClearAllowedValues(g_PropName_ActiveImage);
     AddAllowedValue(g_PropName_ActiveImage, "Off");
-    for (int i = 0; i < dpcPatternCount_; i++)
+    for (int i = 0; i < dpcPatternCount; i++)
     {
         std::string imageName = "DPC" + std::to_string(i + 1);
         AddAllowedValue(g_PropName_ActiveImage, imageName.c_str());
@@ -738,28 +589,28 @@ void DisplayIlluminator::UpdateAllowedImages()
 
 void DisplayIlluminator::CreateDpcImages()
 {
-    for (int i = 0; i < dpcPatternCount_; i++)
+    for (int i = 0; i < dpcPatternCount; i++)
     {
         SourcePatternRenderer dpcPatternRenderer(width_, height_);
         std::string imageName = "DPC" + std::to_string(i + 1);
-        dpcPatternRenderer.RenderHalfOval(centerX_, centerY_, dpcWidth_, dpcHeight_, rotation_, i * 360.0 / dpcPatternCount_, monoColor_);
+        dpcPatternRenderer.RenderHalfOval(centerX, centerY, dpcWidth, dpcHeight, rotation, i * 360.0 / dpcPatternCount, monoColor);
         images_[imageName] = dpcPatternRenderer;
     }
 }
 
 void DisplayIlluminator::UpdateDpcImages()
 {
-    for (int i = 0; i < dpcPatternCount_; i++)
+    for (int i = 0; i < dpcPatternCount; i++)
     {
         std::string imageName = "DPC" + std::to_string(i + 1);
         images_[imageName].ClearFrame();
-        if (dpcInnerHeight_ <= 0 && dpcInnerWidth_ <= 0)
+        if (dpcInnerHeight <= 0 && dpcInnerWidth <= 0)
         {
-            images_[imageName].RenderHalfOval(centerX_, centerY_, dpcWidth_, dpcHeight_, rotation_, i * 360.0 / dpcPatternCount_, monoColor_);
+            images_[imageName].RenderHalfOval(centerX, centerY, dpcWidth, dpcHeight, rotation, i * 360.0 / dpcPatternCount, monoColor);
         }
         else
         {
-            images_[imageName].RenderEllipticalHalfAnnulus(centerX_, centerY_, dpcWidth_, dpcHeight_, dpcInnerWidth_, dpcInnerHeight_, rotation_, i * 360.0 / dpcPatternCount_, monoColor_);
+            images_[imageName].RenderEllipticalHalfAnnulus(centerX, centerY, dpcWidth, dpcHeight, dpcInnerWidth, dpcInnerHeight, rotation, i * 360.0 / dpcPatternCount, monoColor);
         }
 
     }
@@ -768,53 +619,53 @@ void DisplayIlluminator::UpdateDpcImages()
 void DisplayIlluminator::CreatePcImage()
 {
     SourcePatternRenderer pcRenderer(width_, height_);
-    pcRenderer.RenderEllipticalAnnulus(centerX_, centerY_, pcWidth_, pcHeight_, pcInnerWidth_, pcInnerHeight_, rotation_, monoColor_);
+    pcRenderer.RenderEllipticalAnnulus(centerX, centerY, pcWidth, pcHeight, pcInnerWidth, pcInnerHeight, rotation, monoColor);
     images_["PC"] = pcRenderer;
 }
 
 void DisplayIlluminator::UpdatePcImage()
 {
     images_["PC"].ClearFrame();
-    images_["PC"].RenderEllipticalAnnulus(centerX_, centerY_, pcWidth_, pcHeight_, pcInnerWidth_, pcInnerHeight_, rotation_, monoColor_);
+    images_["PC"].RenderEllipticalAnnulus(centerX, centerY, pcWidth, pcHeight, pcInnerWidth, pcInnerHeight, rotation, monoColor);
 }
 
 void DisplayIlluminator::CreateDfImage()
 {
     SourcePatternRenderer dfRenderer(width_, height_);
-    dfRenderer.RenderEllipticalAnnulus(centerX_, centerY_, dfWidth_, dfHeight_, dfInnerWidth_, dfInnerHeight_, rotation_, monoColor_);
+    dfRenderer.RenderEllipticalAnnulus(centerX, centerY, dfWidth, dfHeight, dfInnerWidth, dfInnerHeight, rotation, monoColor);
     images_["DF"] = dfRenderer;
 }
 
 void DisplayIlluminator::UpdateDfImage()
 {
     images_["DF"].ClearFrame();
-    images_["DF"].RenderEllipticalAnnulus(centerX_, centerY_, dfWidth_, dfHeight_, dfInnerWidth_, dfInnerHeight_, rotation_, monoColor_);
+    images_["DF"].RenderEllipticalAnnulus(centerX, centerY, dfWidth, dfHeight, dfInnerWidth, dfInnerHeight, rotation, monoColor);
 }
 
 void DisplayIlluminator::CreateBfImage()
 {
     SourcePatternRenderer bfRenderer(width_, height_);
-    bfRenderer.RenderOval(centerX_, centerY_, bfWidth_, bfHeight_, rotation_, monoColor_);
+    bfRenderer.RenderOval(centerX, centerY, bfWidth, bfHeight, rotation, monoColor);
     images_["BF"] = bfRenderer;
 }
 
 void DisplayIlluminator::UpdateBfImage()
 {
     images_["BF"].ClearFrame();
-    images_["BF"].RenderOval(centerX_, centerY_, bfWidth_, bfHeight_, rotation_, monoColor_);
+    images_["BF"].RenderOval(centerX, centerY, bfWidth, bfHeight, rotation, monoColor);
 }
 
 void DisplayIlluminator::CreateRbImage()
 {
     SourcePatternRenderer rbRenderer(width_, height_);
-    rbRenderer.RenderOval(centerX_, centerY_, dfWidth_, dfHeight_, dfInnerWidth_, dfInnerHeight_, rotation_, monoColor_, rbOuterColor_);
+    rbRenderer.RenderOval(centerX, centerY, dfWidth, dfHeight, dfInnerWidth, dfInnerHeight, rotation, monoColor, rbOuterColor);
     images_["RB"] = rbRenderer;
 }
 
 void DisplayIlluminator::UpdateRbImage()
 {
     images_["RB"].ClearFrame();
-    images_["RB"].RenderOval(centerX_, centerY_, dfWidth_, dfHeight_, dfInnerWidth_, dfInnerHeight_, rotation_, monoColor_, rbOuterColor_);
+    images_["RB"].RenderOval(centerX, centerY, dfWidth, dfHeight, dfInnerWidth, dfInnerHeight, rotation, monoColor, rbOuterColor);
 }
 
 void DisplayIlluminator::CreateImages()
@@ -850,4 +701,7 @@ int DisplayIlluminator::SetImage(SourcePatternRenderer imageRenderer)
     return this->SetImage(imageRenderer.getImageAsArray());
 }
 
-
+int DisplayIlluminator::BlitActiveImageToBuffer()
+{
+   return SetImage(images_[activeImage]);   
+}

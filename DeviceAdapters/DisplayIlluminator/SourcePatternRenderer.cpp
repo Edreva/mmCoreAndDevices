@@ -2,20 +2,26 @@
 
 SourcePatternRenderer::SourcePatternRenderer() :
 	backgroundImage(cv::Mat()),
-	image(cv::Mat())
+	image(cv::Mat()),
+	imageWidth(0),
+	imageHeight(0)
 {
 
 }
 
 SourcePatternRenderer::SourcePatternRenderer(int imageWidth, int imageHeight) :
 	backgroundImage(cv::Mat::zeros(imageHeight, imageWidth, CV_8UC4)),
-	image(cv::Mat::zeros(imageHeight, imageWidth, CV_8UC4))
+	image(cv::Mat::zeros(imageHeight, imageWidth, CV_8UC4)),
+	imageWidth(imageWidth),
+	imageHeight(imageHeight)
 {
 }
 
 SourcePatternRenderer::SourcePatternRenderer(int imageWidth, int imageHeight, std::string colorHex) :
 	backgroundImage(cv::Mat::zeros(imageHeight, imageWidth, CV_8UC4)),
-	image(cv::Mat::zeros(imageHeight, imageWidth, CV_8UC4))
+	image(cv::Mat::zeros(imageHeight, imageWidth, CV_8UC4)),
+	imageWidth(imageWidth),
+	imageHeight(imageHeight)
 {
 	backgroundImage.setTo(colorHexToScalar(colorHex));
 	image.setTo(colorHexToScalar(colorHex));
@@ -69,7 +75,9 @@ void SourcePatternRenderer::RenderHalfOval(int centerX, int centerY, int width, 
 void SourcePatternRenderer::RenderEllipse(int centerX, int centerY, int width, int height, 
 	double rotation, double startAngle, double stopAngle, cv::Scalar colorScalar, int thickness)
 {
-	cv::ellipse(image, cv::Point(centerX, centerY), cv::Size(width/2, height/2), rotation, startAngle, stopAngle, colorScalar, thickness);
+	int xPos = convertXCoordOriginFromCenterToUpperLeft(centerX);
+	int yPos = convertYCoordOriginFromCenterToUpperLeft(centerY);
+	cv::ellipse(image, cv::Point(xPos, yPos), cv::Size(width/2, height/2), rotation, startAngle, stopAngle, colorScalar, thickness);
 }
 
 void SourcePatternRenderer::ClearFrame()
@@ -100,4 +108,14 @@ cv::Scalar colorHexToScalar(std::string colorHex, int channelCount) {
 		scalarVals[i] = strtod((std::string("0x") + colorHex.substr(i * channelCharLength, channelCharLength)).c_str(), nullptr);
 	}
 	return cv::Scalar(scalarVals[2], scalarVals[1], scalarVals[0], scalarVals[3]);
+}
+
+// Helper function to convert coordinates from centered origin to upper left corner
+// TODO: Rename this to something more succinct.
+int SourcePatternRenderer::convertXCoordOriginFromCenterToUpperLeft(int centerX) {
+	return centerX + imageWidth / 2;
+}
+
+int SourcePatternRenderer::convertYCoordOriginFromCenterToUpperLeft(int centerY) {
+	return centerY + imageHeight / 2; 
 }

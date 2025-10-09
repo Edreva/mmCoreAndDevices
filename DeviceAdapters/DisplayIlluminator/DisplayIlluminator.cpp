@@ -220,8 +220,8 @@ int DisplayIlluminator::InitializeImages()
 {
     // Set startup values
     unsigned int initialAnnulusThickness = 20;
-    centerX = static_cast<unsigned int>(round(width_ / 2));
-    centerY = static_cast<unsigned int>(round(height_ / 2));
+    centerX = 0; // static_cast<unsigned int>(round(width_ / 2));
+    centerY = 0; // static_cast<unsigned int>(round(height_ / 2));
     dpcWidth = static_cast<unsigned int>(round(std::min(height_, width_)));
     dpcHeight = dpcWidth;
     bfWidth = dpcWidth - initialAnnulusThickness;

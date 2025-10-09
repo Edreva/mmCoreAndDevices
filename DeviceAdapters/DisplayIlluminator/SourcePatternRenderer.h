@@ -35,9 +35,14 @@ public:
 
 	unsigned int* getImageAsArray();
 	std::vector<unsigned int> getImageAsVector();
+
+	int convertXCoordOriginFromCenterToUpperLeft(int centerX);
+	int convertYCoordOriginFromCenterToUpperLeft(int centerY);
 private:
 	cv::Mat image;
 	cv::Mat backgroundImage;
+	int imageWidth;
+	int imageHeight;
 };
 
 cv::Scalar colorHexToScalar(std::string colorHex, int channelCount = 3);

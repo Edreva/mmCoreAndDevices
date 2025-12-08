@@ -658,14 +658,14 @@ void DisplayIlluminator::UpdateBfImage()
 void DisplayIlluminator::CreateRbImage()
 {
     SourcePatternRenderer rbRenderer(width_, height_);
-    rbRenderer.RenderOval(centerX, centerY, dfWidth, dfHeight, dfInnerWidth, dfInnerHeight, rotation, monoColor, rbOuterColor);
+    rbRenderer.RenderOval(centerX, centerY, dfWidth, dfHeight, dfInnerWidth, dfInnerHeight, rotation, rbInnerColor, rbOuterColor);
     images_["RB"] = rbRenderer;
 }
 
 void DisplayIlluminator::UpdateRbImage()
 {
     images_["RB"].ClearFrame();
-    images_["RB"].RenderOval(centerX, centerY, dfWidth, dfHeight, dfInnerWidth, dfInnerHeight, rotation, monoColor, rbOuterColor);
+    images_["RB"].RenderOval(centerX, centerY, dfWidth, dfHeight, dfInnerWidth, dfInnerHeight, rotation, rbInnerColor, rbOuterColor);
 }
 
 void DisplayIlluminator::CreateImages()

@@ -191,8 +191,8 @@ private:
 		{ g_PropName_Rotation, PropertyImageModeMapping{&rotation, {BF, DF, PC, DPC, RB}}},
 		{ g_PropName_CenterX, PropertyImageModeMapping{&centerX, {BF, DF, PC, DPC, RB}}},
 		{ g_PropName_CenterY, PropertyImageModeMapping{&centerY, {BF, DF, PC, DPC, RB}}},
-		{ g_PropName_RbOuterColor, PropertyImageModeMapping{&rbOuterColor, {BF, DF, PC, DPC, RB}}},
-		{ g_PropName_RbInnerColor, PropertyImageModeMapping{&rbInnerColor, {BF, DF, PC, DPC, RB}}},
+		{ g_PropName_RbOuterColor, PropertyImageModeMapping{&rbOuterColor, {RB}}},
+		{ g_PropName_RbInnerColor, PropertyImageModeMapping{&rbInnerColor, {RB}}},
 		{ g_PropName_MonoColor, PropertyImageModeMapping{&monoColor, {BF, DF, PC, DPC}}},
 		{ g_PropName_ActiveImage, PropertyImageModeMapping{&activeImage, {BF, DF, PC, DPC, RB}}},
 	};

@@ -45,6 +45,7 @@ const char* g_PropName_CenterY = "CenterY";
 const char* g_PropName_MonoColor = "MonoColor";
 const char* g_PropName_RbOuterColor = "RheinbergOuterColor";
 const char* g_PropName_RbInnerColor = "RheinbergInnerColor";
+const char* g_PropName_delayMs = "Delay_ms";
 
 class DisplayIlluminator : public CSLMBase<DisplayIlluminator>
 {
@@ -58,7 +59,7 @@ public:
 	virtual int Shutdown();
 
 	virtual void GetName(char* pszName) const;
-	virtual bool Busy();
+	bool Busy() override;
 
 	// SLM API
 	virtual unsigned int GetWidth();
@@ -110,6 +111,7 @@ private:
 	int OnImagePropUpdate(MM::PropertyBase* pProp, MM::ActionType eAct);
 	int OnActiveImage(MM::PropertyBase* pProp, MM::ActionType eAct);
 	int OnDpcPatternCount(MM::PropertyBase* pProp, MM::ActionType eAct);
+	int OnDelayUpdate(MM::PropertyBase* pProp, MM::ActionType eAct);
 
 
 	int BlitActiveImageToBuffer();
@@ -147,6 +149,8 @@ private:
 	SLMWindowThread* windowThread_;
 	SleepBlocker* sleepBlocker_;
 	RefreshWaiter refreshWaiter_;
+
+	bool busy_;
 
 	// Image Properties (references are added to imagePropertyModeMap)
 	// Bright-field

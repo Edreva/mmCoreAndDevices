@@ -64,9 +64,10 @@ DisplayIlluminator::DisplayIlluminator(const char* name) :
     sleepBlocker_(0),
     windowThread_(0),
     pixelSize_(0.0),
-    exposureMs_(0.0)
-
+    exposureMs_(0.0),
+    busy_(true)
 {
+   //EnableDelay(true);
 
    InitializeDefaultErrorMessages();
    SetErrorText(ERR_INVALID_TESTMODE_SIZE,
@@ -79,7 +80,7 @@ DisplayIlluminator::DisplayIlluminator(const char* name) :
 		 "Cannot set image (device uninitialized?)");
 
    availableMonitors_ = GetMonitorNames(true, false);
-
+  
    // Pre-init Properties
 
    CreateStringProperty(g_PropName_GraphicsPort, "TestMode", false, 0, true);
@@ -109,6 +110,7 @@ void DisplayIlluminator::GetName(char* name) const
 
 int DisplayIlluminator::Initialize()
 {
+    busy_ = true;
     Shutdown();
 
     //
@@ -132,6 +134,8 @@ int DisplayIlluminator::Initialize()
     err = InitializeImages();
     if (err != DEVICE_OK)
         return err;
+
+    busy_ = false;
 
     return DEVICE_OK;
 }
@@ -240,6 +244,7 @@ int DisplayIlluminator::InitializeImages()
     rbOuterColor = "FF0000";
     rbInnerColor = "0000FF";
 
+	CreateProperty(g_PropName_delayMs, static_cast<long>(GetDelayMs()), false, new CPropertyAction(this, &DisplayIlluminator::OnDelayUpdate));
     CreateProperty(g_PropName_ActiveImage, false, new CPropertyAction(this, &DisplayIlluminator::OnImagePropUpdate));
     CreateProperty(g_PropName_BfHeight, false, new CPropertyAction(this, &DisplayIlluminator::OnImagePropUpdate));
     CreateProperty(g_PropName_BfWidth, false, new CPropertyAction(this, &DisplayIlluminator::OnImagePropUpdate));
@@ -322,12 +327,10 @@ int DisplayIlluminator::Shutdown()
 }
 
 
-// Copied from GenericSLM
+// Unused. Will use delays intead.
 bool DisplayIlluminator::Busy()
 {
-    // TODO We _could_ make the wait for vertical sync asynchronous
-    // (Make sure first that Projector knows to wait for non-busy)
-    return false;
+    return busy_;
 }
 
 unsigned int DisplayIlluminator::GetWidth()
@@ -524,10 +527,30 @@ int DisplayIlluminator::OnImagePropUpdate(MM::PropertyBase* pProp, MM::ActionTyp
     }
     else if (eAct == MM::AfterSet)
     {
+		busy_ = true;
         GetImageProperty(pProp);
         UpdateImages(imagePropertyModeMap.at(pProp->GetName()).relatedImageModes);
         BlitActiveImageToBuffer();
 		DisplayImage();
+
+        CDeviceUtils::SleepMs(static_cast<long>(GetDelayMs()));
+        
+        busy_ = false;
+    }
+    return DEVICE_OK;
+}
+
+int DisplayIlluminator::OnDelayUpdate(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+    if (eAct == MM::BeforeGet)
+    {
+        pProp->Set(GetDelayMs());
+    }
+    else if (eAct == MM::AfterSet)
+    {
+        double temp;
+        pProp->Get(temp);
+		SetDelayMs(temp);
     }
     return DEVICE_OK;
 }
@@ -541,8 +564,15 @@ int DisplayIlluminator::OnActiveImage(MM::PropertyBase* pProp, MM::ActionType eA
     else if (eAct == MM::AfterSet)
     {
         pProp->Get(activeImage);
+		busy_ = true;
         BlitActiveImageToBuffer();
         DisplayImage();
+
+        // Attempted to use core to implement non-blocking delay but this seemed to be ignored. 
+        // This ensures that there is a delay to allow the screen to update before any subsequent commands are executed
+        CDeviceUtils::SleepMs(static_cast<long>(GetDelayMs())); 
+
+		busy_ = false;
 
         // Fire the property changed event through the Core
         GetCoreCallback()->OnPropertyChanged(this, pProp->GetName().c_str(), activeImage.c_str());

@@ -19,15 +19,25 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="LumascopeStage.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="LumascopeStage.cpp" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\..\MMDevice\MMDevice-SharedRuntime.vcxproj">
       <Project>{b8c95f39-54bf-40a9-807b-598df2821d55}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="LumascopeHub.cpp" />
+    <ClCompile Include="LumascopeModule.cpp" />
+    <ClCompile Include="LumascopePortDetection.cpp" />
+    <ClCompile Include="LumascopePositionStore.cpp" />
+    <ClCompile Include="LumascopeXYStage.cpp" />
+    <ClCompile Include="LumascopeZStage.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="LumascopeHub.h" />
+    <ClInclude Include="LumascopePortDetection.h" />
+    <ClInclude Include="LumascopePositionStore.h" />
+    <ClInclude Include="LumascopeProtocol.h" />
+    <ClInclude Include="LumascopeXYStage.h" />
+    <ClInclude Include="LumascopeZStage.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>

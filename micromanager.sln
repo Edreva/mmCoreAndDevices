@@ -548,6 +548,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NikonAZ100SDK", "SecretDevi
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "EnderscopeStage", "DeviceAdapters\EnderscopeStage\EnderscopeStage.vcxproj", "{2E5B103B-0D6F-4D73-9309-0ECB807A5154}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LumascopeStage", "DeviceAdapters\LumascopeStage\LumascopeStage.vcxproj", "{F0831B7D-D0FA-44E2-85C4-A79BD46B8FD1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -1646,6 +1648,10 @@ Global
 		{2E5B103B-0D6F-4D73-9309-0ECB807A5154}.Debug|x64.Build.0 = Debug|x64
 		{2E5B103B-0D6F-4D73-9309-0ECB807A5154}.Release|x64.ActiveCfg = Release|x64
 		{2E5B103B-0D6F-4D73-9309-0ECB807A5154}.Release|x64.Build.0 = Release|x64
+		{F0831B7D-D0FA-44E2-85C4-A79BD46B8FD1}.Debug|x64.ActiveCfg = Debug|x64
+		{F0831B7D-D0FA-44E2-85C4-A79BD46B8FD1}.Debug|x64.Build.0 = Debug|x64
+		{F0831B7D-D0FA-44E2-85C4-A79BD46B8FD1}.Release|x64.ActiveCfg = Release|x64
+		{F0831B7D-D0FA-44E2-85C4-A79BD46B8FD1}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
